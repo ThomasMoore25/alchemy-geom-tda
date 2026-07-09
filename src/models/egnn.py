@@ -1,18 +1,15 @@
-"""EGNN baseline (и основная модель) — использует готовую реализацию egnn-pytorch.
+"""EGNN с правильным API и radius_graph вместо химических связей.
 
-EGNN: E(n)-EquInvariant Graph Neural Network (Satorras et al., 2021)
-https://arxiv.org/abs/2102.09844
-
-E(3)-эквивариантна (сдвиги + повороты + отражения + перестановки).
-Использует готовую реализацию из egnn-pytorch (как в проектах прошлого семестра).
-
-Установка: pip install egnn-pytorch
+Главные отличия от v7:
+  1. Используем radius_graph (радиус 5 Å) вместо химических связей из SDF
+     → EGNN видит все пары атомов в радиусе, не только связанных
+  2. Вызываем EGNN_Sparse правильно: feats и pos отдельно (не склеенные)
+  3. Добавляем edge_attr (расстояния) для лучшей работы
 """
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch_geometric.utils import scatter
-from torch_geometric.nn import global_add_pool
+from torch_geometric.nn import global_add_pool, radius_graph
 
 try:
     from egnn_pytorch import EGNN_Sparse
@@ -27,6 +24,7 @@ class EGNNModel(nn.Module):
     Args:
         hidden_channels: размер скрытых признаков
         num_layers: число слоёв EGNN
+        cutoff: радиус для radius_graph (Å)
         predict_mu, predict_alpha, predict_gap: какие таргеты предсказывать
     """
 
@@ -34,6 +32,7 @@ class EGNNModel(nn.Module):
         self,
         hidden_channels: int = 128,
         num_layers: int = 4,
+        cutoff: float = 5.0,
         predict_mu: bool = True,
         predict_alpha: bool = True,
         predict_gap: bool = True,
@@ -41,11 +40,10 @@ class EGNNModel(nn.Module):
     ):
         super().__init__()
         if not EGNN_AVAILABLE:
-            raise ImportError(
-                "egnn-pytorch не установлен. Установите: pip install egnn-pytorch"
-            )
+            raise ImportError("egnn-pytorch не установлен: pip install egnn-pytorch")
 
         self.hidden_channels = hidden_channels
+        self.cutoff = cutoff
         self.predict_mu = predict_mu
         self.predict_alpha = predict_alpha
         self.predict_gap = predict_gap
@@ -53,13 +51,18 @@ class EGNNModel(nn.Module):
         # Embedding атомов: 8 признаков → hidden
         self.atom_embed = nn.Linear(8, hidden_channels)
 
-        # Стек EGNN слоёв
+        # EGNN слои — с правильным API
         self.egnn_layers = nn.ModuleList([
-            EGNN_Sparse(feats_dim=hidden_channels, pos_dim=3)
+            EGNN_Sparse(
+                feats_dim=hidden_channels,
+                pos_dim=3,
+                edge_dim=1,          # передаём расстояние как edge_attr
+                num_nearest_neighbors=None,  # не ограничиваем
+            )
             for _ in range(num_layers)
         ])
 
-        # Heads для скалярных выходов
+        # Heads
         if predict_mu:
             self.mu_head = nn.Sequential(
                 nn.Linear(hidden_channels, hidden_channels // 2),
@@ -80,30 +83,22 @@ class EGNNModel(nn.Module):
             )
 
     def forward(self, batch) -> dict[str, Tensor]:
-        """
-        Args:
-            batch: PyG Batch с x (N, 8), pos (N, 3), batch (N,), edge_index (2, E)
-        """
-        # Embedding
         h = self.atom_embed(batch.x.float())  # (N, hidden)
         pos = batch.pos  # (N, 3)
 
-        # EGNN_Sparse принимает edge_index
-        edge_index = batch.edge_index if hasattr(batch, 'edge_index') and batch.edge_index.numel() > 0 else None
+        # Строим граф по радиусу — ВСЕ пары атомов в радиусе cutoff
+        edge_index = radius_graph(
+            pos, r=self.cutoff, batch=batch.batch,
+            loop=False, max_num_neighbors=64,
+        )
+        # edge_attr: расстояния для каждого ребра
+        row, col = edge_index
+        edge_vec = pos[row] - pos[col]
+        edge_dist = edge_vec.norm(dim=-1, keepdim=True)  # (E, 1)
 
-        # Если edge_index нет — строим полный граф по молекулам
-        if edge_index is None or edge_index.numel() == 0:
-            from torch_geometric.nn import radius_graph
-            edge_index = radius_graph(pos, r=5.0, batch=batch.batch,
-                                       loop=False, max_num_neighbors=32)
-
-        # Проходим через слои EGNN
+        # Проходим через EGNN слои — ПРАВИЛЬНЫЙ API
         for layer in self.egnn_layers:
-            # EGNN_Sparse: принимает конкатенированный тензор [pos, h]
-            combined = torch.cat([pos, h], dim=-1)  # (N, 3 + hidden)
-            combined = layer(combined, edge_index, batch=batch.batch)
-            pos = combined[:, :3]
-            h = combined[:, 3:]
+            h, pos = layer(h, pos, edge_index, edge_attr=edge_dist)
 
         # Pooling: суммарный вектор молекулы
         mol_emb = global_add_pool(h, batch.batch)  # (B, hidden)
