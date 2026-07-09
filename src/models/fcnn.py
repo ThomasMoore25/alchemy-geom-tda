@@ -1,26 +1,23 @@
-"""FCNN baseline: полносвязная сеть на фичах молекулы.
+"""FCNN baseline: полносвязная сеть на агрегированных признаках молекулы.
 
 Никаких индуктивных смещений: ни сдвигов, ни поворотов, ни перестановок.
-Фичи молекулы: агрегированные узловые признаки (mean, max, sum) + глобальные статистики.
+Фичи молекулы: mean, max, sum по узловым признакам.
 """
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch_geometric.utils import scatter
 
 
 class FCNNBaseline(nn.Module):
-    """Простая MLP регрессия.
-
-    Вход: вектор признаков молекулы (агрегированные узловые признаки).
-    Выход: предсказание таргета.
-    """
+    """Простая MLP регрессия на агрегированных признаках молекулы."""
 
     def __init__(
         self,
         in_dim: int,
         hidden_dim: int = 256,
         n_layers: int = 4,
-        out_dim: int = 3,  # 3 для диполя, 6 для α (hack), 1 для gap
+        out_dim: int = 1,
         dropout: float = 0.1,
     ):
         super().__init__()
@@ -35,22 +32,13 @@ class FCNNBaseline(nn.Module):
         self.net = nn.Sequential(*layers)
 
     def forward(self, batch) -> torch.Tensor:
-        """
-        Args:
-            batch: PyG Batch с полями x (N, F), batch (N,)
-        Returns:
-            (B, out_dim)
-        """
-        from torch_geometric.utils import scatter
-
         x = batch.x  # (N, F)
         batch_idx = batch.batch  # (N,)
 
-        # Глобальные признаки молекулы: mean, max, sum по узлам
-        mean = scatter(x, batch_idx, dim=0, reduce="mean")  # (B, F)
-        mx = scatter(x, batch_idx, dim=0, reduce="max")     # (B, F)
-        s = scatter(x, batch_idx, dim=0, reduce="sum")      # (B, F)
-        feat = torch.cat([mean, mx, s], dim=-1)              # (B, 3F)
+        mean = scatter(x, batch_idx, dim=0, reduce="mean")
+        mx = scatter(x, batch_idx, dim=0, reduce="max")
+        s = scatter(x, batch_idx, dim=0, reduce="sum")
+        feat = torch.cat([mean, mx, s], dim=-1)  # (B, 3F)
 
         return self.net(feat)
 

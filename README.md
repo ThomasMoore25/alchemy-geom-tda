@@ -1,59 +1,46 @@
 # Alchemy GeomML + TDA
 
-Предсказание **вектора дипольного момента** μ (1×3) и **тензора поляризуемости** α (3×3) молекул датасета [Alchemy](https://arxiv.org/pdf/1906.09427) с использованием:
+Предсказание свойств молекул датасета [Alchemy](https://arxiv.org/pdf/1906.09427) с использованием:
 
-- **Геометрического ML:** E(3)-эквивариантная нейросеть PaiNN (с векторными и тензорными выходами)
+- **Геометрического ML:** E(3)-эквивариантная нейросеть PaiNN
 - **Топологического анализа данных (TDA):** персистентная гомология облака 3D-точек атомов (Vietoris-Rips) + интеграция через FiLM conditioning
 - **Baselines:** FCNN, SchNet
 
+## Таргеты
+
+Из Alchemy `final_version.csv`:
+- **mu** (Дебай) — норма вектора дипольного момента |μ|
+- **alpha** (a₀³) — изотропная поляризуемость tr(α)/3
+- **gap** (Хартри) — HOMO-LUMO gap
+
 ## Симметрии задачи
 
-| Свойство | Тип | Представление | Преобразование при вращении R |
-|---|---|---|---|
-| Диполь μ | вектор 1×3 | irrep l=1 | μ → R·μ |
-| Изотропная поляризуемость tr(α) | скаляр | irrep l=0 | не меняется |
-| Анизотропная поляризуемость α_aniso | тензор 5 компонент | irrep l=2 | α → R·α·Rᵀ |
-| HOMO-LUMO gap | скаляр | irrep l=0 | не меняется |
+Молекулы обладают симметриями:
+- **Трансляции:** сдвиг всей молекулы не меняет свойства
+- **Вращения SO(3):** поворот молекулы сохраняет химию
+- **Перестановки одинаковых атомов:** порядок нумерации произволен
 
-Сеть строго эквивариантна к E(3) = (сдвиги) ⋊ O(3).
+PaiNN кодирует эти симметрии в архитектуру, обеспечивая эквивариантность внутренних
+признаков и инвариантность скалярных выходов.
 
 ## Архитектура
 
 ```
                    ┌─────────────────────┐
                    │  TDA-модуль         │
-   3D координаты ──┤  Vietoris-Rips      │── TDA-фичи (130D) ──┐
+   3D координаты ──┤  Vietoris-Rips      │── TDA-фичи (52D) ──┐
    атомов          │  Betti curves       │                      │ FiLM
                    │  Persistence entropy│                      │ conditioning
                    └─────────────────────┘                      │
                                                                 ▼
    Атомы +         ┌─────────────────────┐                ┌──────────────┐
-   координаты  ───▶│  PaiNN              │───────────────▶│  Heads       │──▶ μ, α, gap
-                   │  (E(3)-эквивариант) │                │  (l=0,1,2)   │
+   координаты  ───▶│  PaiNN              │───────────────▶│  Heads       │──▶ mu, alpha, gap
+                   │  (E(3)-эквивариант) │                │  (скаляры)   │
                    └─────────────────────┘                └──────────────┘
 ```
 
 ## Установка
 
-```bash
-# Создаём окружение
-conda create -n alchemy python=3.10 -y
-conda activate alchemy
-
-# PyTorch (CPU или GPU — заменить на нужную версию)
-pip install torch --index-url https://download.pytorch.org/whl/cu121
-
-# PyTorch Geometric
-pip install torch-geometric
-
-# TDA и химия
-pip install gudhi rdkit
-
-# Прочее
-pip install numpy pandas scipy matplotlib seaborn tqdm pyyaml scikit-learn
-```
-
-Или:
 ```bash
 pip install -r requirements.txt
 ```
@@ -66,29 +53,32 @@ pip install -r requirements.txt
 python data/download_alchemy.py
 ```
 
+Скачивает ~136 МБ, распаковывает в `data/alchemy/Alchemy-v20191129/`.
+
 ### 2. Обучение моделей
 
 ```bash
 # FCNN baseline
-python src/train.py --model fcnn --target dipole
+python src/train.py --model fcnn --target all --epochs 50
 
 # SchNet baseline
-python src/train.py --model schnet --target dipole
+python src/train.py --model schnet --target all --epochs 50
 
 # PaiNN (основная модель)
-python src/train.py --model painn --target dipole
+python src/train.py --model painn --target all --epochs 100
 
-# PaiNN + TDA
-python src/train.py --model painn_tda --target dipole
+# PaiNN + TDA (наша финальная модель)
+python src/train.py --model painn_tda --target all --epochs 100
 
-# Multi-task: диполь + поляризуемость + HOMO-LUMO
-python src/train.py --model painn_tda --target all
+# Для отладки (на 1000 молекулах)
+python src/train.py --model painn --target all --epochs 5 --max_train 1000
 ```
 
 ### 3. Тестирование робастности к шуму
 
 ```bash
-python src/train.py --model painn_tda --target dipole --noise 0.10 --eval_only --checkpoint best.pt
+python src/train.py --model painn_tda --target all --eval_only \
+    --checkpoint checkpoints/painn_tda_all_best.pt --noise 0.10
 ```
 
 ## Структура репозитория
@@ -99,33 +89,33 @@ alchemy-geom-tda/
 ├── requirements.txt
 ├── .gitignore
 ├── data/
-│   └── download_alchemy.py
+│   └── download_alchemy.py        # Скачивание Alchemy v20191129
 ├── src/
-│   ├── data.py                # Alchemy dataset, сплиты, нормализация
-│   ├── utils.py               # seeds, logging
-│   ├── metrics.py             # MAE, угловая ошибка
-│   ├── train.py               # основной скрипт обучения
+│   ├── data.py                    # Парсинг SDF + final_version.csv
+│   ├── dataset.py                 # PyG AlchemyDataset
+│   ├── utils.py                   # Сиды, логирование
+│   ├── metrics.py                 # MAE для mu/alpha/gap
+│   ├── train.py                   # Главный скрипт обучения
 │   ├── models/
-│   │   ├── fcnn.py            # FCNN baseline
-│   │   ├── schnet.py          # SchNet baseline
-│   │   ├── painn.py           # PaiNN с l=0,1,2 выходами
-│   │   └── painn_tda.py       # PaiNN + TDA через FiLM
+│   │   ├── fcnn.py                # FCNN baseline
+│   │   ├── schnet.py              # SchNet baseline
+│   │   ├── painn.py               # PaiNN с скалярными выходами
+│   │   └── painn_tda.py           # PaiNN + TDA через FiLM
 │   └── tda/
-│       ├── features.py        # Vietoris-Rips, Betti curves
-│       └── film.py            # FiLM conditioning
+│       ├── features.py            # Vietoris-Rips, Betti curves
+│       └── film.py                # FiLM conditioning
 ├── configs/
 │   └── default.yaml
-└── notebooks/
-    └── 01_eda.py
+├── notebooks/
+│   └── 01_eda.py                  # EDA датасета
+└── results/
+    └── table.md
 ```
-
-## Результаты
-
-См. `results/table.md` после обучения.
 
 ## Ссылки
 
 - **Alchemy dataset:** Chen et al., 2019. [arXiv:1906.09427](https://arxiv.org/pdf/1906.09427)
+- **Скачивание данных:** https://alchemy.tencent.com/data/alchemy-v20191129.zip
 - **PaiNN:** Schütt et al., 2021. [arXiv:2102.03150](https://arxiv.org/abs/2102.03150)
 - **Equivariant ML обзор:** Weiler, 2023. [блог](https://maurice-weiler.gitlab.io/blog_post/cnn-book_1_equivariant_networks/)
 - **TDA обзор:** Chazal & Michel, 2019. [arXiv:1904.11044](https://arxiv.org/pdf/1904.11044)
