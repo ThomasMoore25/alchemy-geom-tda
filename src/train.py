@@ -61,6 +61,10 @@ def parse_args():
     p.add_argument("--device", type=str, default="auto")
     p.add_argument("--max_train", type=int, default=None,
                    help="Лимит числа обучающих молекул (для отладки)")
+    p.add_argument("--max_val", type=int, default=None,
+                   help="Лимит валидационных молекул (для отладки)")
+    p.add_argument("--max_test", type=int, default=None,
+                   help="Лимит тестовых молекул (для отладки)")
     p.add_argument("--n_bins", type=int, default=16, help="TDA Betti bins")
     p.add_argument("--max_radius", type=float, default=5.0, help="TDA радиус")
     return p.parse_args()
@@ -110,8 +114,21 @@ def build_model(args, tda_dim: int = 0):
     raise ValueError(f"Unknown model: {args.model}")
 
 
-def compute_loss(preds: dict, batch, target: str) -> torch.Tensor:
+def _unpack_preds(preds, target: str) -> dict:
+    """Унификация: FCNN/SchNet возвращают тензор, PaiNN — словарь.
+    Возвращает словарь {'mu': ..., 'alpha': ..., 'gap': ...} в зависимости от target.
+    """
+    if isinstance(preds, dict):
+        return preds
+    # preds — тензор (B, out_dim)
+    if target == "all":
+        return {"mu": preds[:, 0:1], "alpha": preds[:, 1:2], "gap": preds[:, 2:3]}
+    return {target: preds}
+
+
+def compute_loss(preds, batch, target: str) -> torch.Tensor:
     """Вычислить loss для выбранного таргета (mu, alpha, gap, all)."""
+    preds = _unpack_preds(preds, target)
     loss = 0.0
     if target in ("mu", "all") and "mu" in preds:
         loss = loss + mu_mae(preds["mu"], batch.mu)
@@ -122,8 +139,9 @@ def compute_loss(preds: dict, batch, target: str) -> torch.Tensor:
     return loss
 
 
-def compute_metrics(preds: dict, batch, target: str) -> dict:
+def compute_metrics(preds, batch, target: str) -> dict:
     """Вычислить метрики для логирования."""
+    preds = _unpack_preds(preds, target)
     metrics = {}
     if target in ("mu", "all") and "mu" in preds:
         metrics["mu_mae"] = mu_mae(preds["mu"], batch.mu).item()
@@ -156,9 +174,11 @@ def main():
                               tda_features=use_tda, n_bins=args.n_bins,
                               max_radius=args.max_radius, seed=args.seed)
     val_ds = AlchemyDataset(root=args.data_dir, split="val",
+                            max_samples=args.max_val,
                             tda_features=use_tda, n_bins=args.n_bins,
                             max_radius=args.max_radius, seed=args.seed)
     test_ds = AlchemyDataset(root=args.data_dir, split="test",
+                             max_samples=args.max_test,
                              tda_features=use_tda, n_bins=args.n_bins,
                              max_radius=args.max_radius, seed=args.seed)
     logger.info(f"Train/Val/Test: {len(train_ds)}/{len(val_ds)}/{len(test_ds)}")

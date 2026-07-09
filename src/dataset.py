@@ -58,7 +58,6 @@ class AlchemyDataset(InMemoryDataset):
         self.seed = seed
         super().__init__(root, transform, pre_transform, pre_filter)
         self.load(self.processed_paths[0])
-
     @property
     def raw_file_names(self):
         return ["Alchemy-v20191129/final_version.csv"]
