@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch_geometric.nn import global_add_pool, radius_graph
+from torch_geometric.nn import global_add_pool, knn_graph
 
 try:
     from egnn_pytorch import EGNN_Sparse
@@ -89,9 +89,9 @@ class EGNNTDA(nn.Module):
         feats = self.atom_embed(atom_types)
         coors = batch.pos
 
-        edge_index = radius_graph(
-            coors, r=self.cutoff, batch=batch.batch,
-            loop=False, max_num_neighbors=64,
+        edge_index = knn_graph(
+            coors, k=16, batch=batch.batch,
+            loop=False,
         )
         row, col = edge_index
         edge_dist = (coors[row] - coors[col]).norm(dim=-1, keepdim=True)

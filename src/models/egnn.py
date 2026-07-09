@@ -11,7 +11,7 @@
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch_geometric.nn import global_add_pool, radius_graph
+from torch_geometric.nn import global_add_pool, knn_graph
 
 try:
     from egnn_pytorch import EGNN_Sparse
@@ -28,7 +28,7 @@ class EGNNModel(nn.Module):
     Args:
         hidden_channels: размер скрытых признаков
         num_layers: число слоёв EGNN
-        cutoff: радиус для radius_graph (Å)
+        cutoff: радиус для knn_graph (Å)
         predict_mu, predict_alpha, predict_gap: какие таргеты предсказывать
     """
 
@@ -112,10 +112,10 @@ class EGNNModel(nn.Module):
         feats = self.atom_embed(atom_types)  # (N, hidden)
         coors = batch.pos                    # (N, 3)
 
-        # radius_graph — все пары атомов в радиусе cutoff
-        edge_index = radius_graph(
-            coors, r=self.cutoff, batch=batch.batch,
-            loop=False, max_num_neighbors=64,
+        # knn_graph — k ближайших соседей (не требует pyg-lib)
+        edge_index = knn_graph(
+            coors, k=16, batch=batch.batch,
+            loop=False,
         )
         row, col = edge_index
         edge_dist = (coors[row] - coors[col]).norm(dim=-1, keepdim=True)  # (E, 1)
