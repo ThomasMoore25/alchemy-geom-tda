@@ -52,6 +52,8 @@ def setup_logger(name: str, log_file: str | None = None) -> "logging.Logger":
     import logging
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
+    # Очищаем старые handlers, чтобы не дублировать логи при повторных вызовах
+    logger.handlers.clear()
     formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
 
     sh = logging.StreamHandler(sys.stdout)
@@ -64,4 +66,6 @@ def setup_logger(name: str, log_file: str | None = None) -> "logging.Logger":
         fh.setFormatter(formatter)
         logger.addHandler(fh)
 
+    # Не передаём логи родительскому logger (чтобы избежать дублей)
+    logger.propagate = False
     return logger

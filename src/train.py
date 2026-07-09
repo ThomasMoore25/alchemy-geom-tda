@@ -115,40 +115,58 @@ def build_model(args, tda_dim: int = 0):
 
 
 def _unpack_preds(preds, target: str) -> dict:
-    """Унификация: FCNN/SchNet возвращают тензор, PaiNN — словарь.
-    Возвращает словарь {'mu': ..., 'alpha': ..., 'gap': ...} в зависимости от target.
-    """
+    """Унификация: FCNN/SchNet возвращают тензор, PaiNN — словарь."""
     if isinstance(preds, dict):
         return preds
-    # preds — тензор (B, out_dim)
     if target == "all":
         return {"mu": preds[:, 0:1], "alpha": preds[:, 1:2], "gap": preds[:, 2:3]}
     return {target: preds}
 
 
-def compute_loss(preds, batch, target: str) -> torch.Tensor:
-    """Вычислить loss для выбранного таргета (mu, alpha, gap, all)."""
+def _normalize_batch(batch, target_stats: dict) -> dict:
+    """Нормализует таргеты в batch: (y - mean) / std. Возвращает dict тензоров."""
+    out = {}
+    for key, (mean, std) in target_stats.items():
+        if hasattr(batch, key):
+            out[key] = (getattr(batch, key) - mean) / std
+    return out
+
+
+def compute_loss(preds, batch, target: str, target_stats: dict | None = None) -> torch.Tensor:
+    """Вычислить loss. Если target_stats задан — работаем в нормализованном пространстве."""
     preds = _unpack_preds(preds, target)
+    if target_stats is not None:
+        targets = _normalize_batch(batch, target_stats)
+    else:
+        targets = {k: getattr(batch, k) for k in ["mu", "alpha", "gap"] if hasattr(batch, k)}
+
     loss = 0.0
     if target in ("mu", "all") and "mu" in preds:
-        loss = loss + mu_mae(preds["mu"], batch.mu)
+        loss = loss + mae(preds["mu"], targets["mu"])
     if target in ("alpha", "all") and "alpha" in preds:
-        loss = loss + alpha_mae(preds["alpha"], batch.alpha)
+        loss = loss + mae(preds["alpha"], targets["alpha"])
     if target in ("gap", "all") and "gap" in preds:
-        loss = loss + gap_mae(preds["gap"], batch.gap)
+        loss = loss + mae(preds["gap"], targets["gap"])
     return loss
 
 
-def compute_metrics(preds, batch, target: str) -> dict:
-    """Вычислить метрики для логирования."""
+def compute_metrics(preds, batch, target: str, target_stats: dict | None = None) -> dict:
+    """Вычислить метрики в исходных единицах (денормализуем предсказания)."""
     preds = _unpack_preds(preds, target)
     metrics = {}
-    if target in ("mu", "all") and "mu" in preds:
-        metrics["mu_mae"] = mu_mae(preds["mu"], batch.mu).item()
-    if target in ("alpha", "all") and "alpha" in preds:
-        metrics["alpha_mae"] = alpha_mae(preds["alpha"], batch.alpha).item()
-    if target in ("gap", "all") and "gap" in preds:
-        metrics["gap_mae"] = gap_mae(preds["gap"], batch.gap).item()
+
+    for key in ["mu", "alpha", "gap"]:
+        if target not in (key, "all"):
+            continue
+        if key not in preds:
+            continue
+        pred_val = preds[key]
+        target_val = getattr(batch, key)
+        # Денормализуем предсказание
+        if target_stats is not None:
+            mean, std = target_stats[key]
+            pred_val = pred_val * std + mean
+        metrics[f"{key}_mae"] = mae(pred_val, target_val).item()
     return metrics
 
 
@@ -182,6 +200,14 @@ def main():
                              tda_features=use_tda, n_bins=args.n_bins,
                              max_radius=args.max_radius, seed=args.seed)
     logger.info(f"Train/Val/Test: {len(train_ds)}/{len(val_ds)}/{len(test_ds)}")
+
+    # === Нормализация таргетов (по train выборке) ===
+    # Считаем mean/std для mu, alpha, gap и храним в словаре
+    target_stats = {}
+    for key in ["mu", "alpha", "gap"]:
+        vals = torch.cat([getattr(d, key) for d in train_ds])
+        target_stats[key] = (float(vals.mean()), float(vals.std() + 1e-8))
+    logger.info(f"Target stats (mean, std): {target_stats}")
 
     from torch_geometric.loader import DataLoader as PyGDataLoader
     train_loader = PyGDataLoader(train_ds, batch_size=args.batch_size, shuffle=True)
@@ -223,7 +249,7 @@ def main():
                 batch.pos = batch.pos + torch.randn_like(batch.pos) * args.noise
             optimizer.zero_grad()
             preds = model(batch)
-            loss = compute_loss(preds, batch, args.target)
+            loss = compute_loss(preds, batch, args.target, target_stats)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
@@ -231,7 +257,7 @@ def main():
         scheduler.step()
 
         # === Validation ===
-        val_metrics = evaluate(model, val_loader, device, args, logger)
+        val_metrics = evaluate(model, val_loader, device, args, logger, target_stats=target_stats)
         val_loss = val_metrics.get("loss", 0)
         elapsed = time.time() - t0
 
@@ -250,12 +276,12 @@ def main():
     # === Test ===
     logger.info("\n=== Финальная оценка на test ===")
     model.load_state_dict(torch.load(ckpt_path, map_location=device))
-    test_metrics = evaluate(model, test_loader, device, args, logger, prefix="test")
+    test_metrics = evaluate(model, test_loader, device, args, logger, prefix="test", target_stats=target_stats)
     for k, v in test_metrics.items():
         logger.info(f"  test_{k}: {v:.4f}")
 
 
-def evaluate(model, loader, device, args, logger, prefix="val"):
+def evaluate(model, loader, device, args, logger, prefix="val", target_stats: dict | None = None):
     """Оценка модели на лоадере."""
     model.eval()
     all_metrics = AverageMeter()
@@ -268,8 +294,8 @@ def evaluate(model, loader, device, args, logger, prefix="val"):
             if args.noise > 0 and prefix == "test":
                 batch.pos = batch.pos + torch.randn_like(batch.pos) * args.noise
             preds = model(batch)
-            loss = compute_loss(preds, batch, args.target)
-            metrics = compute_metrics(preds, batch, args.target)
+            loss = compute_loss(preds, batch, args.target, target_stats)
+            metrics = compute_metrics(preds, batch, args.target, target_stats)
 
             for k, v in metrics.items():
                 metric_sums[k] = metric_sums.get(k, 0.0) + v * batch.num_graphs
