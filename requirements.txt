@@ -13,6 +13,9 @@ scikit-learn>=1.3
 # TDA
 gudhi>=3.8
 
+# Equivariant models
+egnn-pytorch>=0.3.0
+
 # Chemistry
 rdkit>=2023.3.1
 
