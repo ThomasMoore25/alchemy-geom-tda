@@ -47,10 +47,11 @@ class EGNNTDA(nn.Module):
                 feats_dim=hidden_channels,
                 pos_dim=3,
                 edge_attr_dim=1,
-                update_coors=False,    # НЕ обновляем координаты
+                update_coors=False,
                 update_feats=True,
-                norm_feats=True,
+                norm_feats=False,      # ОТКЛЮЧАЕМ LayerNorm
                 norm_coors=False,
+                m_dim=32,
             )
             for _ in range(num_layers)
         ])

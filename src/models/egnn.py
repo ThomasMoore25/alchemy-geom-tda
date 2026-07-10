@@ -57,16 +57,17 @@ class EGNNModel(nn.Module):
         # Embedding атомов
         self.atom_embed = nn.Embedding(NUM_ATOM_TYPES, hidden_channels)
 
-        # EGNN слои — КОРРЕКТНЫЕ ИМЕНА ПАРАМЕТРОВ
+        # EGNN слои
         self.egnn_layers = nn.ModuleList([
             EGNN_Sparse(
                 feats_dim=hidden_channels,
                 pos_dim=3,
-                edge_attr_dim=1,       # ← НЕ edge_dim!
-                update_coors=False,    # НЕ обновляем координаты (мы предсказываем скаляры)
-                update_feats=True,     # обновляем признаки
-                norm_feats=True,       # LayerNorm признаков (нужен batch)
+                edge_attr_dim=1,
+                update_coors=False,
+                update_feats=True,
+                norm_feats=False,      # ОТКЛЮЧАЕМ LayerNorm — он убивал информацию
                 norm_coors=False,
+                m_dim=32,              # УВЕЛИЧИВАЕМ размер сообщений (дефолт 16 маловат)
             )
             for _ in range(num_layers)
         ])
