@@ -1,12 +1,11 @@
-"""EGNN v10: КОРРЕКТНЫЙ API egnn-pytorch.
+"""EGNN v15: ТОЧНО как в проекте arutamonofu/dls (прошлый семестр).
 
-Главные исправления относительно v9:
-  1. EGNN_Sparse принимает СКЛЕЕННЫЙ тензор [pos, feats], не два отдельных
-  2. EGNN_Sparse возвращает СКЛЕЕННЫЙ тензор [coors_out, hidden_out]
-  3. Параметр называется edge_attr_dim, а не edge_dim
-  4. Передаём batch в forward (нужен для norm_feats)
-  5. Embedding для типов атомов
-  6. Глобальные дескрипторы в heads (гистограмма + n_atoms + mass)
+Ключевые отличия от v14:
+  1. Используем ХИМИЧЕСКИЕ СВЯЗИ из SDF (edge_index), а не knn_graph
+  2. update_coors=True (дефолт) — как в оригинальной статье EGNN
+  3. НЕ нормализуем координаты (в Alchemy они ~1-5 Å, это нормально)
+  4. nn.Embedding для типов атомов
+  5. global_add_pool для pooling
 """
 import torch
 import torch.nn as nn
@@ -19,20 +18,11 @@ try:
 except ImportError:
     EGNN_AVAILABLE = False
 
-from .knn import knn_graph_pytorch as knn_graph
-
-NUM_ATOM_TYPES = 7  # H, C, N, O, F, S, Cl
+NUM_ATOM_TYPES = 7
 
 
 class EGNNModel(nn.Module):
-    """EGNN для скалярных выходов (mu, alpha, gap).
-
-    Args:
-        hidden_channels: размер скрытых признаков
-        num_layers: число слоёв EGNN
-        cutoff: радиус для knn_graph (Å)
-        predict_mu, predict_alpha, predict_gap: какие таргеты предсказывать
-    """
+    """EGNN для скалярных выходов — как в проекте прошлого семестра."""
 
     def __init__(
         self,
@@ -49,30 +39,24 @@ class EGNNModel(nn.Module):
             raise ImportError("egnn-pytorch не установлен: pip install egnn-pytorch")
 
         self.hidden_channels = hidden_channels
-        self.cutoff = cutoff
         self.predict_mu = predict_mu
         self.predict_alpha = predict_alpha
         self.predict_gap = predict_gap
 
-        # Embedding атомов
+        # Embedding атомов (как в проекте прошлого семестра)
         self.atom_embed = nn.Embedding(NUM_ATOM_TYPES, hidden_channels)
+        self.node_in_proj = nn.Linear(hidden_channels, hidden_channels)
 
-        # EGNN слои
+        # EGNN слои — ДЕФОЛТНЫЕ ПАРАМЕТРЫ (update_coors=True, norm_feats=False)
         self.egnn_layers = nn.ModuleList([
             EGNN_Sparse(
                 feats_dim=hidden_channels,
                 pos_dim=3,
-                edge_attr_dim=1,
-                update_coors=False,
-                update_feats=True,
-                norm_feats=False,      # ОТКЛЮЧАЕМ LayerNorm — он убивал информацию
-                norm_coors=False,
-                m_dim=32,              # УВЕЛИЧИВАЕМ размер сообщений (дефолт 16 маловат)
             )
             for _ in range(num_layers)
         ])
 
-        # Глобальные дескрипторы: 7 (hist) + 1 (n_atoms) + 1 (mass) = 9
+        # Глобальные дескрипторы
         global_dim = NUM_ATOM_TYPES + 2
         head_in = hidden_channels + global_dim
 
@@ -96,54 +80,39 @@ class EGNNModel(nn.Module):
             )
 
     def _global_descriptors(self, batch) -> Tensor:
-        """Гистограмма типов атомов + n_atoms + total_mass. (B, 9)"""
-        atom_onehot = batch.x[:, :NUM_ATOM_TYPES]  # (N, 7)
-        mass = batch.x[:, -1:]                      # (N, 1)
-
-        hist = global_add_pool(atom_onehot, batch.batch)  # (B, 7)
+        atom_onehot = batch.x[:, :NUM_ATOM_TYPES]
+        mass = batch.x[:, -1:]
+        hist = global_add_pool(atom_onehot, batch.batch)
         ones = torch.ones(mass.shape[0], 1, device=mass.device)
-        n_atoms = global_add_pool(ones, batch.batch)       # (B, 1)
-        total_mass = global_add_pool(mass, batch.batch)    # (B, 1)
-
-        return torch.cat([hist, n_atoms, total_mass], dim=-1)  # (B, 9)
+        n_atoms = global_add_pool(ones, batch.batch)
+        total_mass = global_add_pool(mass, batch.batch)
+        return torch.cat([hist, n_atoms, total_mass], dim=-1)
 
     def forward(self, batch) -> dict[str, Tensor]:
-        # Индекс типа атома из one-hot
-        atom_types = batch.x[:, :NUM_ATOM_TYPES].argmax(dim=-1).long()  # (N,)
+        # Тип атома из one-hot
+        atom_types = batch.x[:, :NUM_ATOM_TYPES].argmax(dim=-1).long()
 
         # Embedding
-        feats = self.atom_embed(atom_types)  # (N, hidden)
-        # Нормализуем координаты (в Alchemy они в Å, ~1-5 Å; делим на типичное значение)
-        coors = batch.pos / 5.0  # масштабируем к диапазону ~0-1
+        h = self.atom_embed(atom_types)
+        h = self.node_in_proj(h)
+        pos = batch.pos  # БЕЗ нормализации!
 
-        # knn_graph — k ближайших соседей (своя реализация, без pyg-lib)
-        edge_index = knn_graph(
-            coors, k=16, batch=batch.batch,
-            loop=False,
-        )
-        row, col = edge_index
-        edge_dist = (coors[row] - coors[col]).norm(dim=-1, keepdim=True)  # (E, 1)
+        # Используем ХИМИЧЕСКИЕ СВЯЗИ из SDF (не knn_graph)
+        edge_index = batch.edge_index
 
-        # === КОРРЕКТНЫЙ ВЫЗОВ EGNN_Sparse ===
-        # x = склеенный [pos, feats]
-        x = torch.cat([coors, feats], dim=-1)  # (N, 3 + hidden)
-
+        # EGNN слои — как в проекте прошлого семестра
         for layer in self.egnn_layers:
-            x = layer(x, edge_index, edge_attr=edge_dist, batch=batch.batch)
-            # x: (N, 3 + hidden) — склеенный [coors_out, hidden_out]
-
-        # Разделяем обратно
-        # coors_out = x[:, :3]  # не используем для скалярных выходов
-        h = x[:, 3:]  # (N, hidden)
+            combined = torch.cat([pos, h], dim=-1)
+            combined = layer(combined, edge_index, batch=batch.batch)
+            pos = combined[:, :3]
+            h = combined[:, 3:]
 
         # Pooling
-        mol_emb = global_add_pool(h, batch.batch)  # (B, hidden)
+        mol_emb = global_add_pool(h, batch.batch)
 
         # Глобальные дескрипторы
-        global_desc = self._global_descriptors(batch)  # (B, 9)
-
-        # Конкатенируем
-        mol_emb = torch.cat([mol_emb, global_desc], dim=-1)  # (B, hidden + 9)
+        global_desc = self._global_descriptors(batch)
+        mol_emb = torch.cat([mol_emb, global_desc], dim=-1)
 
         out = {}
         if self.predict_mu:

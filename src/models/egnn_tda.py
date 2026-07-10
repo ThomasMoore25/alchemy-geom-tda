@@ -1,4 +1,4 @@
-"""EGNN + TDA v10: корректный API egnn-pytorch."""
+"""EGNN + TDA v15: как в проекте прошлого семестра + TDA."""
 import torch
 import torch.nn as nn
 from torch import Tensor
@@ -10,13 +10,11 @@ try:
 except ImportError:
     EGNN_AVAILABLE = False
 
-from .knn import knn_graph_pytorch as knn_graph
-
 NUM_ATOM_TYPES = 7
 
 
 class EGNNTDA(nn.Module):
-    """EGNN + TDA + глобальные дескрипторы."""
+    """EGNN + TDA — как в проекте arutamonofu/dls."""
 
     def __init__(
         self,
@@ -34,25 +32,16 @@ class EGNNTDA(nn.Module):
             raise ImportError("egnn-pytorch не установлен: pip install egnn-pytorch")
 
         self.hidden_channels = hidden_channels
-        self.cutoff = cutoff
         self.tda_dim = tda_dim
         self.predict_mu = predict_mu
         self.predict_alpha = predict_alpha
         self.predict_gap = predict_gap
 
         self.atom_embed = nn.Embedding(NUM_ATOM_TYPES, hidden_channels)
+        self.node_in_proj = nn.Linear(hidden_channels, hidden_channels)
 
         self.egnn_layers = nn.ModuleList([
-            EGNN_Sparse(
-                feats_dim=hidden_channels,
-                pos_dim=3,
-                edge_attr_dim=1,
-                update_coors=False,
-                update_feats=True,
-                norm_feats=False,      # ОТКЛЮЧАЕМ LayerNorm
-                norm_coors=False,
-                m_dim=32,
-            )
+            EGNN_Sparse(feats_dim=hidden_channels, pos_dim=3)
             for _ in range(num_layers)
         ])
 
@@ -61,22 +50,16 @@ class EGNNTDA(nn.Module):
 
         if predict_mu:
             self.mu_head = nn.Sequential(
-                nn.Linear(head_in, hidden_channels),
-                nn.SiLU(),
-                nn.Linear(hidden_channels, 1),
-            )
+                nn.Linear(head_in, hidden_channels), nn.SiLU(),
+                nn.Linear(hidden_channels, 1))
         if predict_alpha:
             self.alpha_head = nn.Sequential(
-                nn.Linear(head_in, hidden_channels),
-                nn.SiLU(),
-                nn.Linear(hidden_channels, 1),
-            )
+                nn.Linear(head_in, hidden_channels), nn.SiLU(),
+                nn.Linear(hidden_channels, 1))
         if predict_gap:
             self.gap_head = nn.Sequential(
-                nn.Linear(head_in, hidden_channels),
-                nn.SiLU(),
-                nn.Linear(hidden_channels, 1),
-            )
+                nn.Linear(head_in, hidden_channels), nn.SiLU(),
+                nn.Linear(hidden_channels, 1))
 
     def _global_descriptors(self, batch) -> Tensor:
         atom_onehot = batch.x[:, :NUM_ATOM_TYPES]
@@ -89,21 +72,16 @@ class EGNNTDA(nn.Module):
 
     def forward(self, batch) -> dict[str, Tensor]:
         atom_types = batch.x[:, :NUM_ATOM_TYPES].argmax(dim=-1).long()
-        feats = self.atom_embed(atom_types)
-        coors = batch.pos / 5.0  # нормализация координат
+        h = self.atom_embed(atom_types)
+        h = self.node_in_proj(h)
+        pos = batch.pos
+        edge_index = batch.edge_index
 
-        edge_index = knn_graph(
-            coors, k=16, batch=batch.batch,
-            loop=False,
-        )
-        row, col = edge_index
-        edge_dist = (coors[row] - coors[col]).norm(dim=-1, keepdim=True)
-
-        # КОРРЕКТНЫЙ API: склеенный [pos, feats]
-        x = torch.cat([coors, feats], dim=-1)
         for layer in self.egnn_layers:
-            x = layer(x, edge_index, edge_attr=edge_dist, batch=batch.batch)
-        h = x[:, 3:]  # (N, hidden)
+            combined = torch.cat([pos, h], dim=-1)
+            combined = layer(combined, edge_index, batch=batch.batch)
+            pos = combined[:, :3]
+            h = combined[:, 3:]
 
         mol_emb = global_add_pool(h, batch.batch)
         global_desc = self._global_descriptors(batch)
