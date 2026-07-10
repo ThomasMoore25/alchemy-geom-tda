@@ -67,6 +67,8 @@ def parse_args():
                    help="Лимит тестовых молекул (для отладки)")
     p.add_argument("--n_bins", type=int, default=16, help="TDA Betti bins")
     p.add_argument("--max_radius", type=float, default=5.0, help="TDA радиус")
+    p.add_argument("--patience", type=int, default=10, help="Early stopping patience")
+    p.add_argument("--min_delta", type=float, default=0.0, help="Early stopping min delta")
     return p.parse_args()
 
 
@@ -292,12 +294,21 @@ def main():
     # === История обучения для графиков ===
     history = []
 
+    # === Early Stopping ===
+    from early_stopping import EarlyStopping
+    early_stopping = EarlyStopping(
+        metrics_config={'val_loss': 'min'},
+        stop_mode='or',
+        save_metric='val_loss',
+        patience=args.patience,
+        min_delta=args.min_delta,
+    )
+
     for epoch in range(1, args.epochs + 1):
         t0 = time.time()
         # === Train ===
         model.train()
         train_loss = AverageMeter()
-        # Дополнительно: train метрики
         train_metric_sums = {}
         train_counts = 0
         for batch in train_loader:
@@ -312,7 +323,6 @@ def main():
             optimizer.step()
             train_loss.update(loss.item(), batch.num_graphs)
 
-            # Train метрики (без backward, для отслеживания)
             with torch.no_grad():
                 tr_metrics = compute_metrics(preds, batch, args.target, target_stats)
                 for k, v in tr_metrics.items():
@@ -334,7 +344,6 @@ def main():
             f"{elapsed:.1f}s"
         )
 
-        # Сохраняем историю
         row = {
             "epoch": epoch,
             "train_loss": train_loss.avg,
@@ -348,14 +357,17 @@ def main():
                 row[f"val_{k}"] = v
         history.append(row)
 
-        if val_loss < best_val:
-            best_val = val_loss
-            torch.save(model.state_dict(), ckpt_path)
-            logger.info(f"  → Сохранён best checkpoint: {ckpt_path}")
+        # === Early Stopping проверка ===
+        stop = early_stopping({'val_loss': val_loss}, model)
+        if stop:
+            logger.info(f"  → Early stopping на эпохе {epoch} (patience={args.patience})")
+            break
+
+    # Восстанавливаем лучшую модель
+    early_stopping.restore_best_model(model)
 
     # === Test ===
     logger.info("\n=== Финальная оценка на test ===")
-    model.load_state_dict(torch.load(ckpt_path, map_location=device))
     test_metrics = evaluate(model, test_loader, device, args, logger, prefix="test", target_stats=target_stats)
     for k, v in test_metrics.items():
         logger.info(f"  test_{k}: {v:.4f}")

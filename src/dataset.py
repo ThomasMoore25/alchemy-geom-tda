@@ -1,13 +1,10 @@
 """
 PyG датасет для Alchemy.
 
-Читает SDF + final_version.csv, создаёт Data объекты с полями:
-  - x, pos, edge_index, edge_attr
-  - mu      (1,)  — норма вектора диполя (скаляр)
-  - alpha   (1,)  — изотропная поляризуемость (скаляр)
-  - gap     (1,)  — HOMO-LUMO gap (скаляр)
-
-Опционально (tda_features=True) добавляет TDA-фичи в поле tda.
+ИСПРАВЛЕНО v21:
+  1. Утечка данных — train/val/test теперь используют РАЗНЫЕ молекулы
+  2. Размеры val/test — max_val=1000 даёт 1000, а не 100
+  3. Логика: сначала split всего датасета, потом ограничение размеров
 """
 import os
 import sys
@@ -30,9 +27,9 @@ class AlchemyDataset(InMemoryDataset):
     Args:
         root: путь к data/alchemy (где лежит папка Alchemy-v20191129)
         split: 'train' | 'val' | 'test' | 'all'
-        max_samples: лимит молекул (для отладки)
+        max_samples: лимит молекул В ЭТОМ СПЛИТЕ (а не в общем пуле)
         tda_features: вычислить и добавить TDA-фичи
-        n_bins: число бинов для Betti curves (если tda_features=True)
+        n_bins: число бинов для Betti curves
         max_radius: радиус фильтрации TDA
         seed: сид для split
     """
@@ -58,6 +55,7 @@ class AlchemyDataset(InMemoryDataset):
         self.seed = seed
         super().__init__(root, transform, pre_transform, pre_filter)
         self.load(self.processed_paths[0])
+
     @property
     def raw_file_names(self):
         return ["Alchemy-v20191129/final_version.csv"]
@@ -69,7 +67,7 @@ class AlchemyDataset(InMemoryDataset):
             suffix += f"_max{self.max_samples}"
         if self.tda_features:
             suffix += f"_tda{self.n_bins}"
-        return [f"alchemy{suffix}.pt"]
+        return [f"alchemy_v21{suffix}.pt"]
 
     def download(self):
         if not (Path(self.root) / "Alchemy-v20191129").exists():
@@ -79,6 +77,12 @@ class AlchemyDataset(InMemoryDataset):
             )
 
     def process(self):
+        """Парсинг SDF и создание Data объектов.
+
+        ИСПРАВЛЕНО: split делается ОДИН РАЗ для всего датасета,
+        потом max_samples ограничивает каждый сплит отдельно.
+        Никакой утечки данных.
+        """
         data_root = Path(self.root) / "Alchemy-v20191129"
         csv_path = data_root / "final_version.csv"
 
@@ -94,27 +98,34 @@ class AlchemyDataset(InMemoryDataset):
         valid_gdb = sorted(set(sdf_files.keys()) & set(props["gdb_idx"].tolist()))
         print(f"  Валидных молекул (SDF + CSV): {len(valid_gdb)}")
 
-        # Лимит для отладки
-        if self.max_samples is not None:
-            valid_gdb = valid_gdb[:self.max_samples]
-            print(f"  Ограничился первыми {self.max_samples}")
+        # === ИСПРАВЛЕНИЕ: делаем split ОДИН РАЗ для ВСЕХ молекул ===
+        print(f"[{self.split}] Делаю stratified split по gap ...")
+        train_idx, val_idx, test_idx = stratified_split_by_gap(
+            valid_gdb, props, seed=self.seed
+        )
+        print(f"  Всего: train={len(train_idx)}, val={len(val_idx)}, test={len(test_idx)}")
 
-        # Разбиение
+        # Выбираем нужный сплит
         if self.split == "all":
             indices = valid_gdb
+        elif self.split == "train":
+            indices = train_idx
+        elif self.split == "val":
+            indices = val_idx
+        elif self.split == "test":
+            indices = test_idx
         else:
-            print(f"[{self.split}] Делаю stratified split по gap ...")
-            train_idx, val_idx, test_idx = stratified_split_by_gap(
-                valid_gdb, props, seed=self.seed
-            )
-            indices = {"train": train_idx, "val": val_idx, "test": test_idx}[self.split]
-            print(f"  {self.split}: {len(indices)} молекул")
+            raise ValueError(f"Unknown split: {self.split}")
+
+        # === ИСПРАВЛЕНИЕ: max_samples ограничивает УЖЕ выбранный сплит ===
+        if self.max_samples is not None:
+            indices = indices[:self.max_samples]
+        print(f"  {self.split}: {len(indices)} молекул (после max_samples)")
 
         # Строим Data объекты
         data_list = []
         props_dict = props.set_index("gdb_idx").to_dict("index")
 
-        # Опционально TDA
         if self.tda_features:
             from src.tda.features import extract_tda_features
 
@@ -144,30 +155,9 @@ class AlchemyDataset(InMemoryDataset):
                 tda = extract_tda_features(
                     arr["pos"], n_bins=self.n_bins, max_radius=self.max_radius
                 )
-                data.tda = torch.from_numpy(tda).unsqueeze(0)  # (1, 52) — для PyG батчинга
+                data.tda = torch.from_numpy(tda).unsqueeze(0)  # (1, 52) для PyG
 
             data_list.append(data)
 
         print(f"[{self.split}] Сохраняю {len(data_list)} молекул в {self.processed_paths[0]}")
         self.save(data_list, self.processed_paths[0])
-
-
-if __name__ == "__main__":
-    # Quick test
-    import sys
-    if len(sys.argv) > 1 and sys.argv[1] == "--test":
-        ds = AlchemyDataset(
-            root="data/alchemy",
-            split="all",
-            max_samples=20,
-            tda_features=False,
-        )
-        print(f"\nDataset size: {len(ds)}")
-        sample = ds[0]
-        print(f"Sample 0:")
-        print(f"  x: {sample.x.shape}")
-        print(f"  pos: {sample.pos.shape}")
-        print(f"  edge_index: {sample.edge_index.shape}")
-        print(f"  mu: {sample.mu}")
-        print(f"  alpha: {sample.alpha}")
-        print(f"  gap: {sample.gap}")
