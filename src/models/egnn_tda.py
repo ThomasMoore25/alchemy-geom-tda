@@ -66,6 +66,7 @@ class EGNNTDA(nn.Module):
                 nn.Linear(head_in, hidden_channels), nn.SiLU(),
                 nn.Linear(hidden_channels, 1))
         if predict_alpha:
+            self.alpha_skip = nn.Linear(NUM_ATOM_TYPES + 2, 1)
             self.alpha_head = nn.Sequential(
                 nn.Linear(head_in, hidden_channels), nn.SiLU(),
                 nn.Linear(hidden_channels, 1))
@@ -111,7 +112,7 @@ class EGNNTDA(nn.Module):
         if self.predict_mu:
             result["mu"] = self.mu_head(mol_emb)
         if self.predict_alpha:
-            result["alpha"] = self.alpha_head(mol_emb)
+            result["alpha"] = self.alpha_skip(global_desc) + self.alpha_head(mol_emb)
         if self.predict_gap:
             result["gap"] = self.gap_head(mol_emb)
         return result

@@ -165,7 +165,7 @@ def _get_target(key: str, batch, target_stats: dict | None = None):
 
 
 def compute_loss(preds, batch, target: str, target_stats: dict | None = None) -> torch.Tensor:
-    """Вычислить loss. Для векторного mu (B,3) — MAE по каждой компоненте."""
+    """Вычислить loss. Для векторного mu (B,3) — сравниваем норму со скалярным таргетом."""
     preds = _unpack_preds(preds, target)
 
     loss = 0.0
@@ -176,13 +176,16 @@ def compute_loss(preds, batch, target: str, target_stats: dict | None = None) ->
             continue
         pred_val = preds[key]
         target_val = _get_target(key, batch, target_stats)
-        # Если pred векторный (B,3) а target скалярный (B,1) — берём норму предсказания
-        if pred_val.dim() == 2 and pred_val.shape[1] == 3 and target_val.dim() == 2 and target_val.shape[1] == 1:
-            # Векторный mu: сравниваем норму вектора со скалярным таргетом
-            pred_norm = pred_val.norm(dim=-1, keepdim=True)
-            loss = loss + (pred_norm - target_val).abs().mean()
-        else:
-            loss = loss + (pred_val - target_val).abs().mean()
+
+        # Если pred векторный (B,3) — берём норму
+        if pred_val.dim() == 2 and pred_val.shape[1] == 3:
+            pred_val = pred_val.norm(dim=-1, keepdim=True)
+
+        # Если target одномерный (B,) — добавляем размерность
+        if target_val.dim() == 1:
+            target_val = target_val.unsqueeze(-1)
+
+        loss = loss + (pred_val - target_val).abs().mean()
     return loss
 
 
@@ -199,25 +202,22 @@ def compute_metrics(preds, batch, target: str, target_stats: dict | None = None)
         pred_val = preds[key]
         target_val = getattr(batch, key)
 
+        # Если target одномерный — добавляем размерность
+        if target_val.dim() == 1:
+            target_val = target_val.unsqueeze(-1)
+
         # Денормализуем предсказание
         if target_stats is not None and key in target_stats:
             mean, std = target_stats[key]
             if pred_val.dim() == 2 and pred_val.shape[1] == 3:
-                # Векторный mu — денормализуем норму
-                pred_norm = pred_val.norm(dim=-1, keepdim=True)
-                pred_val = pred_norm * std + mean
-            else:
-                pred_val = pred_val * std + mean
+                pred_val = pred_val.norm(dim=-1, keepdim=True)
+            pred_val = pred_val * std + mean
 
-        # Сравнение
-        if pred_val.dim() == 2 and pred_val.shape[1] == 1:
-            metrics[f"{key}_mae"] = (pred_val - target_val).abs().mean().item()
-        elif pred_val.dim() == 2 and pred_val.shape[1] == 3:
-            # Векторный mu — сравниваем норму со скалярным таргетом
-            pred_norm = pred_val.norm(dim=-1, keepdim=True)
-            metrics[f"{key}_mae"] = (pred_norm - target_val).abs().mean().item()
-        else:
-            metrics[f"{key}_mae"] = (pred_val - target_val).abs().mean().item()
+        # Если pred всё ещё векторный (после денормализации не должно быть)
+        if pred_val.dim() == 2 and pred_val.shape[1] == 3:
+            pred_val = pred_val.norm(dim=-1, keepdim=True)
+
+        metrics[f"{key}_mae"] = (pred_val - target_val).abs().mean().item()
     return metrics
 
 

@@ -17,10 +17,13 @@ class FCNNBaseline(nn.Module):
         in_dim: int,
         hidden_dim: int = 256,
         n_layers: int = 4,
-        out_dim: int = 1,
+        out_dim: int = 3,
         dropout: float = 0.1,
     ):
         super().__init__()
+        # BatchNorm на входе — критично! Без него mass~300 доминирует
+        self.input_norm = nn.BatchNorm1d(in_dim)
+
         layers = []
         d = in_dim
         for _ in range(n_layers):
@@ -39,6 +42,9 @@ class FCNNBaseline(nn.Module):
         mx = scatter(x, batch_idx, dim=0, reduce="max")
         s = scatter(x, batch_idx, dim=0, reduce="sum")
         feat = torch.cat([mean, mx, s], dim=-1)  # (B, 3F)
+
+        # Нормализация входа
+        feat = self.input_norm(feat)
 
         return self.net(feat)
 

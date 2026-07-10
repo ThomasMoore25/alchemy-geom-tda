@@ -97,6 +97,7 @@ class EGNNVectorModel(nn.Module):
         head_in = hidden_channels + global_dim
 
         if predict_alpha:
+            self.alpha_skip = nn.Linear(NUM_ATOM_TYPES + 2, 1)
             self.alpha_head = nn.Sequential(
                 nn.Linear(head_in, hidden_channels), nn.SiLU(),
                 nn.Linear(hidden_channels, 1))
@@ -161,7 +162,7 @@ class EGNNVectorModel(nn.Module):
 
         out = {"mu": mu}  # (B, 3) — вектор!
         if self.predict_alpha:
-            out["alpha"] = self.alpha_head(mol_emb)  # (B, 1)
+            out["alpha"] = self.alpha_skip(global_desc) + self.alpha_head(mol_emb)
         if self.predict_gap:
             out["gap"] = self.gap_head(mol_emb)  # (B, 1)
         return out

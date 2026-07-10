@@ -79,9 +79,12 @@ class EGNNModel(nn.Module):
                 nn.Linear(head_in, hidden_channels), nn.SiLU(),
                 nn.Linear(hidden_channels, 1))
         if predict_alpha:
+            # Skip connection: alpha напрямую из глобальных дескрипторов
+            # alpha ~ молекулярный объём ~ функция от числа и типов атомов
+            self.alpha_skip = nn.Linear(global_dim, 1)  # прямой путь
             self.alpha_head = nn.Sequential(
                 nn.Linear(head_in, hidden_channels), nn.SiLU(),
-                nn.Linear(hidden_channels, 1))
+                nn.Linear(hidden_channels, 1))  # уточняющий путь
         if predict_gap:
             self.gap_head = nn.Sequential(
                 nn.Linear(head_in, hidden_channels), nn.SiLU(),
@@ -120,7 +123,8 @@ class EGNNModel(nn.Module):
         if self.predict_mu:
             result["mu"] = self.mu_head(mol_emb)
         if self.predict_alpha:
-            result["alpha"] = self.alpha_head(mol_emb)
+            # Skip connection: alpha = skip(global_desc) + head(mol_emb)
+            result["alpha"] = self.alpha_skip(global_desc) + self.alpha_head(mol_emb)
         if self.predict_gap:
             result["gap"] = self.gap_head(mol_emb)
         return result
