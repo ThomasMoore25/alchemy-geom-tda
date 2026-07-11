@@ -45,7 +45,9 @@ def parse_args():
                    help="Целевое свойство")
     p.add_argument("--data_dir", type=str, default="data/alchemy")
     p.add_argument("--checkpoint_dir", type=str, default="checkpoints")
-    p.add_argument("--batch_size", type=int, default=64)
+    p.add_argument("--output_dir", type=str, default="results",
+                   help="Куда складывать CSV-истории (по умолчанию results/)")
+    p.add_argument("--batch_size", type=int, default=1024)  # v27: 1024 по умолчанию
     p.add_argument("--epochs", type=int, default=50)
     p.add_argument("--lr", type=float, default=1e-4)  # НИЖЕ! 5e-4 не учится
     p.add_argument("--weight_decay", type=float, default=1e-5)
@@ -243,7 +245,8 @@ def main():
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     else:
         device = torch.device(args.device)
-    print(f"Device: {device}")
+    n_gpus = torch.cuda.device_count() if device.type == "cuda" else 0
+    print(f"Device: {device}" + (f"  (GPUs: {n_gpus})" if n_gpus > 0 else ""))
 
     logger = setup_logger("train", log_file=f"logs/{args.model}_{args.target}.log")
     # Загрузка датасета
@@ -281,6 +284,13 @@ def main():
     tda_dim = tda_feature_dim(args.n_bins) if args.model in ("painn_tda", "egnn_tda", "egnn_vector_tda") else 0
 
     model = build_model(args, tda_dim=tda_dim).to(device)
+    # v27: автодетект multi-GPU
+    if torch.cuda.device_count() > 1 and device.type == "cuda":
+        logger.info(f"Использую nn.DataParallel на {torch.cuda.device_count()} GPU")
+        model = nn.DataParallel(model)
+        _underlying = model.module
+    else:
+        _underlying = model
     n_params = sum(p.numel() for p in model.parameters())
     logger.info(f"Модель: {args.model}, параметров: {n_params:,}")
 
@@ -300,7 +310,7 @@ def main():
 
     best_val = float("inf")
     Path(args.checkpoint_dir).mkdir(parents=True, exist_ok=True)
-    Path("results").mkdir(parents=True, exist_ok=True)
+    Path(args.output_dir).mkdir(parents=True, exist_ok=True)  # v27: output_dir вместо жёсткого results
     ckpt_path = Path(args.checkpoint_dir) / f"{args.model}_{args.target}_best.pt"
 
     # === История обучения для графиков ===
@@ -362,28 +372,34 @@ def main():
         if 'alpha_mae' in val_metrics: metrics_to_track['val_alpha_mae'] = val_metrics['alpha_mae']
         if 'gap_mae' in val_metrics: metrics_to_track['val_gap_mae'] = val_metrics['gap_mae']
 
-        prev_best = early_stopping.best_values['val_loss']
-        stop = early_stopping(metrics_to_track, model)
-        curr_best = early_stopping.best_values['val_loss']
-        
-        # Счётчик для лога (берём по val_loss, так как это save_metric)
-        es_counter = early_stopping.counters['val_loss']
+        # v27: EarlyStopping вызов + расширенный лог
+        stop = early_stopping(metrics_to_track, _underlying)
+
+        # v28: текущий lr после scheduler.step()
+        current_lr = optimizer.param_groups[0]['lr']
 
         log_msg = (
             f"Epoch {epoch:3d}/{args.epochs} | "
             f"train_loss={train_loss.avg:.4f} | val_loss={val_loss:.4f} | "
             f"{' | '.join(f'{k}={v:.4f}' for k, v in val_metrics.items() if k != 'loss')} | "
-            f"ES=[{es_counter}/{args.patience}] | "
+            f"ES={early_stopping.format_counters()} | "
+            f"lr={current_lr:.2e} | "
             f"{elapsed:.1f}s"
         )
-        if curr_best < prev_best:
-            log_msg += " | → Сохранён best checkpoint"
+        # v27: RESET-метка (если что-то улучшилось)
+        reset_str = early_stopping.format_resets()
+        if reset_str:
+            log_msg += f" | {reset_str}"
+        # v28: метка лучшей эпохи (без сохранения на диск — только отметка)
+        if early_stopping.last_saved:
+            log_msg += " | ★ best"
         logger.info(log_msg)
 
         row = {
             "epoch": epoch,
             "train_loss": train_loss.avg,
             "val_loss": val_loss,
+            "lr": current_lr,  # v28: lr в CSV
             "elapsed": elapsed,
         }
         for k, v in train_avg_metrics.items():
@@ -397,8 +413,12 @@ def main():
             logger.info(f"  → Early stopping на эпохе {epoch} (patience={args.patience})")
             break
 
-    # Восстанавливаем лучшую модель
-    early_stopping.restore_best_model(model)
+    # Восстанавливаем лучшую модель (v27: в _underlying, не в обёртку DataParallel)
+    early_stopping.restore_best_model(_underlying)
+
+    # v28: сохранение best ckpt на диск ОДИН РАЗ — после restore, перед test
+    torch.save(_underlying.state_dict(), ckpt_path)
+    logger.info(f"→ Сохранён best checkpoint → {ckpt_path.name}")
 
     # === Test ===
     logger.info("\n=== Финальная оценка на test ===")
@@ -408,7 +428,10 @@ def main():
 
     # === Сохранение истории в CSV ===
     import csv
-    csv_path = f"results/history_{args.model}_{args.target}.csv"
+    # v28: дата+время в имени файла
+    from datetime import datetime
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    csv_path = f"{args.output_dir}/history_{args.model}_{args.target}_{ts}.csv"  # v28: timestamp
     if history:
         keys = list(history[0].keys())
         # Добавляем test-метрики в последнюю строку

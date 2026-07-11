@@ -150,30 +150,101 @@ def compare_histories(
     return fig
 
 
-if __name__ == "__main__":
+def find_latest_history(input_dir: str, model_name: str | None = None) -> list[str]:
+    """v28: найти самые свежие history-CSV по модели.
+
+    Имя файла теперь содержит timestamp: history_<model>_all_<YYYYMMDD_HHMMSS>.csv
+    Берём самый свежий по mtime для каждой модели.
+
+    Args:
+        input_dir: директория с CSV
+        model_name: если None — все модели, иначе конкретная
+
+    Returns:
+        Список путей к CSV (по одному на модель — самый свежий)
+    """
     import glob
-    p = argparse.ArgumentParser()
-    p.add_argument("--models", type=str, default="all", help="Список моделей через запятую или 'all'")
-    p.add_argument("--save_dir", type=str, default="results/figures", help="Куда сохранить PNG")
-    p.add_argument("--no-show", action="store_true", help="Не показывать (для сервера)")
+    if model_name is None:
+        # Все history_*.csv
+        all_csvs = sorted(glob.glob(f"{input_dir}/history_*.csv"))
+    else:
+        all_csvs = sorted(glob.glob(f"{input_dir}/history_{model_name}_*.csv"))
+
+    # Группируем по имени модели (берём часть между history_ и _<timestamp>)
+    import re
+    by_model = {}
+    for csv in all_csvs:
+        basename = os.path.basename(csv)
+        # history_<model>_<target>_<ts>.csv или history_<model>_<target>.csv (старый формат)
+        m = re.match(r"history_(.+)_(\d{8}_\d{6})\.csv$", basename)
+        if m:
+            key = f"{m.group(1)}"  # <model>_<target>
+        else:
+            m_old = re.match(r"history_(.+)\.csv$", basename)
+            if m_old:
+                key = m_old.group(1)
+            else:
+                continue
+        # Берём самый свежий по mtime
+        if key not in by_model or os.path.getmtime(csv) > os.path.getmtime(by_model[key]):
+            by_model[key] = csv
+
+    return list(by_model.values())
+
+
+def plot_main():
+    """v27: удобная точка входа без конфликта с именем main().
+
+    v28: поддержка нового формата имени history_<model>_<target>_<ts>.csv
+         (берётся самый свежий по mtime для каждой модели)
+
+    Использование:
+      python -c "from plot import plot_main; plot_main()"
+      или из скрипта: from plot import plot_main; plot_main()
+    """
+    p = argparse.ArgumentParser(description="Plot training curves")
+    p.add_argument("--models", type=str, default="all",
+                   help="Список моделей через запятую или 'all'")
+    p.add_argument("--input_dir", type=str, default="results",
+                   help="Где искать history_*.csv")
+    p.add_argument("--save_dir", type=str, default="results/figures",
+                   help="Куда сохранить PNG")
+    p.add_argument("--no-show", action="store_true",
+                   help="Не показывать (для сервера)")
     args = p.parse_args()
 
     if args.models == "all":
-        csvs = sorted(glob.glob("results/history_*.csv"))
+        csvs = find_latest_history(args.input_dir)
     else:
-        csvs = [f"results/history_{m}_all.csv" for m in args.models.split(",")]
-        csvs = [c for c in csvs if os.path.exists(c)]
+        csvs = []
+        for m in args.models.split(","):
+            csvs.extend(find_latest_history(args.input_dir, m))
 
     if not csvs:
-        print("CSV файлы не найдены!")
-    else:
-        # Отдельные графики
-        for csv in csvs:
-            model_name = os.path.basename(csv).replace("history_", "").replace(".csv", "")
-            save_path = f"{args.save_dir}/{model_name}_curves.png"
-            plot_training_history(csv, save_path=save_path, show=not args.no_show)
+        print(f"CSV файлы не найдены в {args.input_dir}!")
+        return
 
-        # Сравнительный график
-        compare_csvs = csvs[:] # Копируем
-        compare_save = f"{args.save_dir}/comparison.png"
-        compare_histories(compare_csvs, save_path=compare_save, show=not args.no_show)
+    print(f"Найдено CSV для построения: {len(csvs)}")
+    for c in csvs:
+        print(f"  - {os.path.basename(c)}")
+
+    # Отдельные графики
+    for csv in csvs:
+        # Извлекаем имя модели из имени файла (убираем history_ и timestamp)
+        basename = os.path.basename(csv)
+        import re
+        m = re.match(r"history_(.+?)_\d{8}_\d{6}\.csv$", basename)
+        if m:
+            model_name = m.group(1)
+        else:
+            model_name = basename.replace("history_", "").replace(".csv", "")
+        save_path = f"{args.save_dir}/{model_name}_curves.png"
+        plot_training_history(csv, save_path=save_path, show=not args.no_show)
+
+    # Сравнительный график
+    compare_save = f"{args.save_dir}/comparison.png"
+    compare_histories(csvs, save_path=compare_save, show=not args.no_show)
+
+
+if __name__ == "__main__":
+    plot_main()
