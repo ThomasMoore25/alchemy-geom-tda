@@ -1,4 +1,11 @@
-"""EGNN + TDA v17: EGNN + TDA-фичи (конкатенация)."""
+"""EGNN + TDA: EGNN с топологическими признаками (конкатенация).
+
+Архитектура:
+  - Базовый EGNN (update_coors=False)
+  - TDA-фичи (52D): Betti curves H_0/H_1/H_2 + persistence entropy
+  - TDA конкатенируется с mol_emb перед heads
+  - Отдельные heads для mu, alpha, gap
+"""
 import torch
 import torch.nn as nn
 from torch import Tensor

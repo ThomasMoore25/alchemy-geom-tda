@@ -1,11 +1,14 @@
-"""Early Stopping — останавливает обучение, если метрики не улучшаются.
+"""Multi-metric Early Stopping для нескольких целевых метрик.
 
-v27 изменения:
-  - format_counters(): возвращает строку вида
-      [val_loss: 3/15 | val_mu_mae: 0/15 | val_alpha_mae: 5/15]
-  - last_reset_metrics: список метрик, улучшившихся на последнем вызове
-    (для RESET-меток в логе)
+Возможности:
+  - Отслеживание нескольких метрик (val_loss, val_mu_mae, val_alpha_mae, val_gap_mae)
+  - stop_mode='and': ждёт, пока ВСЕ метрики перестанут улучшаться
+  - stop_mode='or': срабатывает, когда ХОТЯ БЫ ОДНА метрика перестала улучшаться
+  - save_metric: метрика, по которой сохраняется best checkpoint
+  - format_counters(): строка вида [val_loss: 3/15 | val_mu_mae: 0/15 | ...]
+  - format_resets(): строка вида RESET:val_mu_mae,val_alpha_mae (метрики, улучшившиеся в текущем вызове)
   - last_saved: флаг, что save_metric улучшился → сохранён best ckpt
+  - restore_best_model(): восстановление лучшего состояния модели из RAM
 """
 class EarlyStopping:
     def __init__(self, metrics_config, stop_mode='and', save_metric=None, patience=3, min_delta=0.0):

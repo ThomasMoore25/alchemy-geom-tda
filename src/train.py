@@ -1,21 +1,27 @@
 """Основной скрипт обучения.
 
+Поддерживаемые модели: fcnn, schnet,
+                      egnn, egnn_tda, egnn_vector, egnn_vector_tda
+
 Примеры запуска:
-  # FCNN baseline
-  python src/train.py --model fcnn --target mu --epochs 50
+  # EGNN (основная модель)
+  python src/train.py --model egnn --target all --epochs 100
 
-  # SchNet baseline
-  python src/train.py --model schnet --target mu --epochs 50
+  # EGNN + TDA
+  python src/train.py --model egnn_tda --target all --epochs 100
 
-  # PaiNN (основная модель)
-  python src/train.py --model painn --target all --epochs 100
+  # EGNN с векторным выходом mu
+  python src/train.py --model egnn_vector --target all --epochs 100
 
-  # PaiNN + TDA (наша финальная модель)
-  python src/train.py --model painn_tda --target all --epochs 100
+  # Multi-GPU (PyG DataParallel)
+  python src/train.py --model egnn --target all --multi_gpu --num_workers 4
+
+  # Для отладки (на 15 молекулах)
+  python src/train.py --model egnn --target all --epochs 5 --max_train 15
 
   # Оценка на зашумлённых координатах
-  python src/train.py --model painn_tda --target all --eval_only \
-      --checkpoint checkpoints/painn_tda_best.pt --noise 0.10
+  python src/train.py --model egnn_tda --target all --eval_only \\
+      --checkpoint checkpoints/egnn_tda_all_best.pt --noise 0.10
 """
 import argparse
 import os
@@ -38,7 +44,7 @@ from tda.features import extract_tda_features, tda_feature_dim
 def parse_args():
     p = argparse.ArgumentParser(description="Alchemy GeomML + TDA training")
     p.add_argument("--model", type=str, required=True,
-                   choices=["fcnn", "schnet", "painn", "painn_tda", "egnn", "egnn_tda", "egnn_vector", "egnn_vector_tda"],
+                   choices=["fcnn", "schnet", "egnn", "egnn_tda", "egnn_vector", "egnn_vector_tda"],
                    help="Тип модели")
     p.add_argument("--target", type=str, default="all",
                    choices=["mu", "alpha", "gap", "all"],
@@ -72,6 +78,12 @@ def parse_args():
     p.add_argument("--patience", type=int, default=15, help="Early stopping patience")
     p.add_argument("--min_delta", type=float, default=0.0, help="Early stopping min delta")
     p.add_argument("--lr_patience", type=int, default=5, help="ReduceLROnPlateau patience")
+    p.add_argument("--multi_gpu", action="store_true",
+                   help="Включить PyG DataParallel для multi-GPU (v29). "
+                        "По умолчанию off — обучение на 1 GPU.")
+    p.add_argument("--num_workers", type=int, default=4,
+                   help="Кол-во worker процессов для DataLoader (v30). "
+                        "0 = без workers (медленно). По умолчанию 4.")
     return p.parse_args()
 
 
@@ -92,29 +104,6 @@ def build_model(args, tda_dim: int = 0):
         out_dim = 3 if args.target == "all" else 1
         return build_schnet(out_dim=out_dim, hidden_channels=args.hidden_channels,
                             num_interactions=args.num_layers, cutoff=args.cutoff)
-
-    elif args.model == "painn":
-        from models.painn import build_painn
-        return build_painn(
-            hidden_channels=args.hidden_channels,
-            num_layers=args.num_layers,
-            cutoff=args.cutoff,
-            predict_mu=pred_mu,
-            predict_alpha=pred_alpha,
-            predict_gap=pred_gap,
-        )
-
-    elif args.model == "painn_tda":
-        from models.painn_tda import build_painn_tda
-        return build_painn_tda(
-            hidden_channels=args.hidden_channels,
-            num_layers=args.num_layers,
-            cutoff=args.cutoff,
-            predict_mu=pred_mu,
-            predict_alpha=pred_alpha,
-            predict_gap=pred_gap,
-            tda_dim=tda_dim or tda_feature_dim(args.n_bins),
-        )
 
     elif args.model == "egnn":
         from models.egnn import build_egnn
@@ -162,7 +151,7 @@ def build_model(args, tda_dim: int = 0):
 
 
 def _unpack_preds(preds, target: str) -> dict:
-    """Унификация: FCNN/SchNet возвращают тензор, PaiNN — словарь."""
+    """Унификация: FCNN/SchNet возвращают тензор, EGNN — словарь."""
     if isinstance(preds, dict):
         return preds
     if target == "all":
@@ -205,8 +194,13 @@ def compute_loss(preds, batch, target: str, target_stats: dict | None = None) ->
     return loss
 
 
-def compute_metrics(preds, batch, target: str, target_stats: dict | None = None) -> dict:
-    """Вычислить метрики в исходных единицах."""
+def compute_metrics(preds, batch, target: str, target_stats: dict | None = None,
+                     as_item: bool = True) -> dict:
+    """Вычислить метрики в исходных единицах.
+
+    v30: as_item=False возвращает тензоры на GPU (без .item() синхронизации).
+    Используется в train loop для отложенной синхронизации.
+    """
     preds = _unpack_preds(preds, target)
     metrics = {}
 
@@ -233,7 +227,8 @@ def compute_metrics(preds, batch, target: str, target_stats: dict | None = None)
         if pred_val.dim() == 2 and pred_val.shape[1] == 3:
             pred_val = pred_val.norm(dim=-1, keepdim=True)
 
-        metrics[f"{key}_mae"] = (pred_val - target_val).abs().mean().item()
+        mae_tensor = (pred_val - target_val).abs().mean()  # тензор на GPU
+        metrics[f"{key}_mae"] = mae_tensor.item() if as_item else mae_tensor
     return metrics
 
 
@@ -253,7 +248,7 @@ def main():
     logger.info("Загрузка датасета Alchemy...")
     from dataset import AlchemyDataset
 
-    use_tda = args.model in ("painn_tda", "egnn_tda", "egnn_vector_tda")
+    use_tda = args.model in ("egnn_tda", "egnn_vector_tda")
     train_ds = AlchemyDataset(root=args.data_dir, split="train",
                               max_samples=args.max_train,
                               tda_features=use_tda, n_bins=args.n_bins,
@@ -277,17 +272,38 @@ def main():
     logger.info(f"Target stats (mean, std): {target_stats}")
 
     from torch_geometric.loader import DataLoader as PyGDataLoader
-    train_loader = PyGDataLoader(train_ds, batch_size=args.batch_size, shuffle=True)
-    val_loader = PyGDataLoader(val_ds, batch_size=args.batch_size, shuffle=False)
-    test_loader = PyGDataLoader(test_ds, batch_size=args.batch_size, shuffle=False)
+    from torch_geometric.loader import DataListLoader
+    from torch_geometric.data import Batch
 
-    tda_dim = tda_feature_dim(args.n_bins) if args.model in ("painn_tda", "egnn_tda", "egnn_vector_tda") else 0
+    # v29: PyG DataParallel требует DataListLoader (возвращает list[Data] вместо Batch)
+    use_multi_gpu = (args.multi_gpu and torch.cuda.device_count() > 1
+                     and device.type == "cuda")
+    LoaderCls = DataListLoader if use_multi_gpu else PyGDataLoader
+    logger.info(f"Loader: {LoaderCls.__name__}  (multi_gpu={use_multi_gpu})")
+
+    # v30: num_workers + pin_memory для ускорения загрузки батчей
+    # DataListLoader (multi-GPU) не поддерживает num_workers корректно с PyG,
+    # поэтому workers только для 1-GPU режима
+    loader_kwargs = {"batch_size": args.batch_size}
+    if not use_multi_gpu and device.type == "cuda":
+        loader_kwargs["num_workers"] = args.num_workers
+        loader_kwargs["pin_memory"] = True
+        loader_kwargs["persistent_workers"] = args.num_workers > 0
+    logger.info(f"Loader kwargs: {loader_kwargs}")
+
+    train_loader = LoaderCls(train_ds, shuffle=True, **loader_kwargs)
+    val_loader = LoaderCls(val_ds, shuffle=False, **loader_kwargs)
+    test_loader = LoaderCls(test_ds, shuffle=False, **loader_kwargs)
+
+    tda_dim = tda_feature_dim(args.n_bins) if args.model in ("egnn_tda", "egnn_vector_tda") else 0
 
     model = build_model(args, tda_dim=tda_dim).to(device)
-    # v27: автодетект multi-GPU
-    if torch.cuda.device_count() > 1 and device.type == "cuda":
-        logger.info(f"Использую nn.DataParallel на {torch.cuda.device_count()} GPU")
-        model = nn.DataParallel(model)
+    # v29: PyG DataParallel (заменяет неработающий nn.DataParallel из v27/v28)
+    if use_multi_gpu:
+        from torch_geometric.nn import DataParallel as PyGDataParallel
+        n_gpu = torch.cuda.device_count()
+        logger.info(f"Использую PyG DataParallel на {n_gpu} GPU")
+        model = PyGDataParallel(model)
         _underlying = model.module
     else:
         _underlying = model
@@ -335,31 +351,50 @@ def main():
         t0 = time.time()
         # === Train ===
         model.train()
-        train_loss = AverageMeter()
-        train_metric_sums = {}
+        train_loss_sum = 0.0  # v30: накапливаем loss как float (один .item() в конце)
+        train_loss_count = 0
+        train_metric_sums = {}  # v30: накапливаем GPU-тензоры
         train_counts = 0
-        for batch in train_loader:
-            batch = batch.to(device)
+        for batch_or_list in train_loader:
+            # v29: унифицированный интерфейс — получаем Batch на device
+            if use_multi_gpu:
+                # DataListLoader возвращает list[Data]
+                data_list = batch_or_list
+                batch = Batch.from_data_list(data_list).to(device)
+                num_graphs = len(data_list)
+            else:
+                batch = batch_or_list.to(device)
+                data_list = None
+                num_graphs = batch.num_graphs
             if args.noise > 0:
                 batch.pos = batch.pos + torch.randn_like(batch.pos) * args.noise
             optimizer.zero_grad()
-            preds = model(batch)
+            preds = model(data_list) if use_multi_gpu else model(batch)
             loss = compute_loss(preds, batch, args.target, target_stats)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
-            train_loss.update(loss.item(), batch.num_graphs)
+            # v30: НЕ вызываем .item() здесь — откладываем до конца эпохи
+            train_loss_sum += loss.detach() * num_graphs  # GPU тензор
+            train_loss_count += num_graphs
 
             with torch.no_grad():
-                tr_metrics = compute_metrics(preds, batch, args.target, target_stats)
+                # v30: as_item=False — метрики как GPU-тензоры
+                tr_metrics = compute_metrics(preds, batch, args.target, target_stats, as_item=False)
                 for k, v in tr_metrics.items():
-                    train_metric_sums[k] = train_metric_sums.get(k, 0.0) + v * batch.num_graphs
-                train_counts += batch.num_graphs
+                    if k not in train_metric_sums:
+                        train_metric_sums[k] = v.detach() * num_graphs
+                    else:
+                        train_metric_sums[k] = train_metric_sums[k] + v.detach() * num_graphs
+                train_counts += num_graphs
 
-        train_avg_metrics = {k: v / max(1, train_counts) for k, v in train_metric_sums.items()}
+        # v30: ОДНА синхронизация GPU→CPU в конце эпохи
+        train_loss_avg = (train_loss_sum / max(1, train_loss_count)).item()
+        train_avg_metrics = {k: (v / max(1, train_counts)).item() for k, v in train_metric_sums.items()}
 
         # === Validation ===
-        val_metrics = evaluate(model, val_loader, device, args, logger, target_stats=target_stats)
+        val_metrics = evaluate(model, val_loader, device, args, logger,
+                              target_stats=target_stats, use_multi_gpu=use_multi_gpu)
         val_loss = val_metrics.get("loss", 0)
         elapsed = time.time() - t0
 
@@ -380,7 +415,7 @@ def main():
 
         log_msg = (
             f"Epoch {epoch:3d}/{args.epochs} | "
-            f"train_loss={train_loss.avg:.4f} | val_loss={val_loss:.4f} | "
+            f"train_loss={train_loss_avg:.4f} | val_loss={val_loss:.4f} | "
             f"{' | '.join(f'{k}={v:.4f}' for k, v in val_metrics.items() if k != 'loss')} | "
             f"ES={early_stopping.format_counters()} | "
             f"lr={current_lr:.2e} | "
@@ -397,7 +432,7 @@ def main():
 
         row = {
             "epoch": epoch,
-            "train_loss": train_loss.avg,
+            "train_loss": train_loss_avg,
             "val_loss": val_loss,
             "lr": current_lr,  # v28: lr в CSV
             "elapsed": elapsed,
@@ -422,7 +457,9 @@ def main():
 
     # === Test ===
     logger.info("\n=== Финальная оценка на test ===")
-    test_metrics = evaluate(model, test_loader, device, args, logger, prefix="test", target_stats=target_stats)
+    test_metrics = evaluate(model, test_loader, device, args, logger,
+                            prefix="test", target_stats=target_stats,
+                            use_multi_gpu=use_multi_gpu)
     for k, v in test_metrics.items():
         logger.info(f"  test_{k}: {v:.4f}")
 
@@ -445,26 +482,39 @@ def main():
         logger.info(f"История сохранена в {csv_path}")
 
 
-def evaluate(model, loader, device, args, logger, prefix="val", target_stats: dict | None = None):
-    """Оценка модели на лоадере."""
+def evaluate(model, loader, device, args, logger, prefix="val",
+             target_stats: dict | None = None, use_multi_gpu: bool = False):
+    """Оценка модели на лоадере.
+
+    v29: если use_multi_gpu=True, loader возвращает list[Data],
+    модель обёрнута в PyG DataParallel и принимает data_list.
+    """
+    from torch_geometric.data import Batch
     model.eval()
     all_metrics = AverageMeter()
     metric_sums = {}
     counts = 0
 
     with torch.no_grad():
-        for batch in loader:
-            batch = batch.to(device)
+        for batch_or_list in loader:
+            if use_multi_gpu:
+                data_list = batch_or_list
+                batch = Batch.from_data_list(data_list).to(device)
+                num_graphs = len(data_list)
+                preds = model(data_list)
+            else:
+                batch = batch_or_list.to(device)
+                num_graphs = batch.num_graphs
+                preds = model(batch)
             if args.noise > 0 and prefix == "test":
                 batch.pos = batch.pos + torch.randn_like(batch.pos) * args.noise
-            preds = model(batch)
             loss = compute_loss(preds, batch, args.target, target_stats)
             metrics = compute_metrics(preds, batch, args.target, target_stats)
 
             for k, v in metrics.items():
-                metric_sums[k] = metric_sums.get(k, 0.0) + v * batch.num_graphs
-            counts += batch.num_graphs
-            all_metrics.update(loss.item(), batch.num_graphs)
+                metric_sums[k] = metric_sums.get(k, 0.0) + v * num_graphs
+            counts += num_graphs
+            all_metrics.update(loss.item(), num_graphs)
 
     avg_metrics = {k: v / max(1, counts) for k, v in metric_sums.items()}
     avg_metrics["loss"] = all_metrics.avg

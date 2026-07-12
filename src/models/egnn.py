@@ -1,15 +1,17 @@
-"""EGNN v17: протестированная конфигурация (loss 0.65 на 16 молекулах).
+"""EGNN: E(3)-эквивариантная нейросеть для предсказания mu/alpha/gap.
 
-Ключевые параметры (найдены локальным тестированием):
-  - update_coors=False (стабильно)
-  - norm_feats=False (не уничтожает информацию)
-  - m_dim=32 (больше ёмкость)
-  - knn_graph_pytorch (без pyg-lib)
+Архитектура:
+  - egnn-pytorch EGNN_Sparse, update_coors=False (только обновление признаков)
+  - m_dim=32, norm_feats=False, norm_coors=False
+  - Собственный knn_graph_pytorch (без pyg-lib)
   - Нормализация координат pos / 5.0
-  - nn.Embedding для типов атомов
-  - Глобальные дескрипторы в heads
+  - nn.Embedding для типов атомов (7 типов: H, C, N, O, F, S, Cl)
+  - Глобальные дескрипторы (гистограмма атомов + масса + число атомов)
   - LayerNorm перед heads
-  - lr=1e-4 (в train.py) — КРИТИЧНО! при 5e-4 не учится
+  - Отдельные heads для mu, alpha, gap
+  - Skip connection для alpha: alpha = Linear(global_desc) + head(mol_emb)
+
+Рекомендуемый lr: 1e-3 (при 5e-4 обучение медленное, при 2e-3 нестабильное)
 """
 import torch
 import torch.nn as nn

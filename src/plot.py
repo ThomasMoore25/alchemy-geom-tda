@@ -1,12 +1,26 @@
-"""Рисование графиков обучения из CSV.
+"""Построение графиков обучения из CSV-историй.
+
+Поддерживает новый формат имени с timestamp: history_<model>_<target>_<YYYYMMDD_HHMMSS>.csv
+При наличии нескольких файлов для одной модели выбирает самый свежий по mtime.
 
 Использование:
+  # Через CLI (рекомендуется)
+  python src/plot.py --input_dir results/experiments/batch_size_512 \\
+      --save_dir results/figures/batch_size_512 --no-show
+
+  # Через Python
+  from plot import plot_main
+  plot_main()
+
+  # Программно для одного CSV
   from plot import plot_training_history
-  plot_training_history('results/history_egnn_all.csv',
+  plot_training_history('results/history_egnn_all_20260711_204058.csv',
                          save_path='results/figures/egnn_curves.png')
 
-  Или из CLI:
-  python src/plot.py --csv results/history_egnn_all.csv --save results/figures/egnn.png
+  # Сравнение нескольких моделей
+  from plot import compare_histories
+  compare_histories(['history_egnn_all_*.csv', 'history_schnet_all_*.csv'],
+                     save_path='results/figures/comparison.png')
 """
 import argparse
 import os

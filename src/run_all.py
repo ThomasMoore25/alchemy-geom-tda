@@ -1,18 +1,19 @@
-"""Единый скрипт запуска всех моделей.
+"""Единый скрипт запуска нескольких моделей с автоматической сводкой.
 
-v27 изменения:
-  - batch_size по умолчанию 1024 (раньше 256)
-  - --output_dir: куда складывать CSV (по умолчанию results/experiments/batch_size_{bs})
-  - --input_dir: алиас для --data_dir (для совместимости)
-  - передаёт --output_dir в train.py
+Возможности:
+  - Запуск списка моделей подряд (--models egnn,egnn_tda или all)
+  - Автоматический summary CSV в конце (model, train_time, test_metrics, ...)
+  - Проброс --multi_gpu и --num_workers в train.py
+  - Авто output_dir: results/experiments/batch_size_{bs}
 
 Запуск:
-  python src/run_all.py --epochs 100 --batch_size 1024
+  # Все EGNN-модели на 2 GPU
+  python src/run_all.py --epochs 9999 --batch_size 1024 --multi_gpu --num_workers 4
 
-  С явным указанием output_dir:
-  python src/run_all.py --batch_size 1024 --output_dir results/experiments/batch_size_1024
+  # Только конкретные модели
+  python src/run_all.py --models egnn,egnn_tda
 
-Для теста (быстро):
+  # Для теста (быстро)
   python src/run_all.py --epochs 5 --max_train 200 --max_val 50 --max_test 50
 """
 import argparse
@@ -46,6 +47,10 @@ def main():
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--models", type=str, default="all",
                    help="Список моделей через запятую или 'all'")
+    p.add_argument("--multi_gpu", action="store_true",
+                   help="Включить PyG DataParallel (v29). По умолчанию off.")
+    p.add_argument("--num_workers", type=int, default=4,
+                   help="Кол-во worker процессов DataLoader (v30). По умолчанию 4.")
     args = p.parse_args()
 
     # v27: input_dir — алиас для data_dir
@@ -87,6 +92,13 @@ def main():
             '--lr_patience', str(args.lr_patience),
         ]
 
+        # v29: проброс --multi_gpu если включён
+        if args.multi_gpu:
+            argv.append('--multi_gpu')
+
+        # v30: проброс --num_workers
+        argv.extend(['--num_workers', str(args.num_workers)])
+
         # Передаём max_ параметры только если они заданы (не None)
         if args.max_train is not None:
             argv.extend(['--max_train', str(args.max_train)])
@@ -96,7 +108,7 @@ def main():
             argv.extend(['--max_test', str(args.max_test)])
 
         # TDA-специфичные параметры
-        if model_name in ("egnn_tda", "painn_tda", "egnn_vector_tda"):
+        if model_name in ("egnn_tda", "egnn_vector_tda"):
             argv.extend(['--n_bins', '16'])
 
         sys.argv = argv
