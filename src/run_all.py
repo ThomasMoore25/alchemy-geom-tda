@@ -43,6 +43,9 @@ def main():
     p.add_argument("--lr", type=float, default=1e-3,
                    help="Learning rate. 1e-3 — canonical default для EGNN.")
     p.add_argument("--patience", type=int, default=15)
+    p.add_argument("--es_mode", type=str, default="and",
+                   choices=["and", "or", "loss_only"],
+                   help="Early stopping режим: and / or / loss_only")
     p.add_argument("--lr_patience", type=int, default=5)
     p.add_argument("--data_dir", type=str, default="data/alchemy",
                    help="Путь к датасету (input_dir алиас)")
@@ -100,6 +103,7 @@ def main():
             '--data_dir', args.data_dir,
             '--output_dir', args.output_dir,  # v27
             '--patience', str(args.patience),
+            '--es_mode', args.es_mode,
             '--lr_patience', str(args.lr_patience),
         ]
 

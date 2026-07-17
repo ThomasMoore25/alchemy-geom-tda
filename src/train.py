@@ -165,6 +165,12 @@ def parse_args():
                    help="Способ интеграции TDA: concat (по умолчанию) или film "
                         "(FiLM-модуляция mol_emb через TDA)")
     p.add_argument("--patience", type=int, default=15, help="Early stopping patience")
+    p.add_argument("--es_mode", type=str, default="and",
+                   choices=["and", "or", "loss_only"],
+                   help="Early stopping режим: "
+                        "and (default) — все метрики должны перестать улучшаться, "
+                        "or — хотя бы одна метрика перестала улучшаться, "
+                        "loss_only — только val_loss отслеживается")
     p.add_argument("--min_delta", type=float, default=0.0, help="Early stopping min delta")
     p.add_argument("--lr_patience", type=int, default=5, help="ReduceLROnPlateau patience")
     p.add_argument("--multi_gpu", action="store_true",
@@ -450,18 +456,26 @@ def main():
 
     # === Early Stopping (многопараметрическая) ===
     from early_stopping import EarlyStopping
-    es_config = {'val_loss': 'min'}
-    if args.target in ('mu', 'all'): es_config['val_mu_mae'] = 'min'
-    if args.target in ('alpha', 'all'): es_config['val_alpha_mae'] = 'min'
-    if args.target in ('gap', 'all'): es_config['val_gap_mae'] = 'min'
+    if args.es_mode == "loss_only":
+        # Только val_loss — простой режим, как классический ES
+        es_config = {'val_loss': 'min'}
+        stop_mode = 'or'  # не имеет значения при одной метрике
+    else:
+        es_config = {'val_loss': 'min'}
+        if args.target in ('mu', 'all'): es_config['val_mu_mae'] = 'min'
+        if args.target in ('alpha', 'all'): es_config['val_alpha_mae'] = 'min'
+        if args.target in ('gap', 'all'): es_config['val_gap_mae'] = 'min'
+        stop_mode = args.es_mode  # 'and' or 'or'
 
     early_stopping = EarlyStopping(
         metrics_config=es_config,
-        stop_mode='and',  # Остановка, если НИ ОДИН параметр не улучшается
+        stop_mode=stop_mode,
         save_metric='val_loss',
         patience=args.patience,
         min_delta=args.min_delta,
     )
+    logger.info(f"EarlyStopping: mode={args.es_mode}, "
+                f"metrics={list(es_config.keys())}, patience={args.patience}")
 
     for epoch in range(1, args.epochs + 1):
         t0 = time.time()
