@@ -36,7 +36,7 @@ import torch.optim as optim
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from utils import seed_everything, get_device, AverageMeter, setup_logger
+from utils import seed_everything, get_device, setup_logger
 from metrics import mae, mu_mae, alpha_mae, gap_mae
 from tda.features import extract_tda_features, tda_feature_dim
 
@@ -640,7 +640,9 @@ def evaluate(model, loader, device, args, logger, prefix="val",
     """
     from torch_geometric.data import Batch
     model.eval()
-    all_metrics = AverageMeter()
+    # v32: унифицированный accumulator — раньше был AverageMeter для loss
+    # + metric_sums dict для остальных метрик, дублирование логики.
+    # Теперь всё в одном metric_sums, loss просто как ещё одна метрика.
     metric_sums = {}
     counts = 0
 
@@ -671,13 +673,13 @@ def evaluate(model, loader, device, args, logger, prefix="val",
             loss = compute_loss(preds, batch, args.target, target_stats)
             metrics = compute_metrics(preds, batch, args.target, target_stats)
 
+            # v32: loss в тот же dict, что и остальные метрики
+            metric_sums["loss"] = metric_sums.get("loss", 0.0) + loss.item() * num_graphs
             for k, v in metrics.items():
                 metric_sums[k] = metric_sums.get(k, 0.0) + v * num_graphs
             counts += num_graphs
-            all_metrics.update(loss.item(), num_graphs)
 
     avg_metrics = {k: v / max(1, counts) for k, v in metric_sums.items()}
-    avg_metrics["loss"] = all_metrics.avg
     return avg_metrics
 
 
