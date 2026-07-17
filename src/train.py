@@ -41,9 +41,79 @@ from metrics import mae, mu_mae, alpha_mae, gap_mae
 from tda.features import extract_tda_features, tda_feature_dim
 
 
+def _load_yaml_config(path: str) -> dict:
+    """Загрузить YAML-конфиг. Возвращает плоский dict аргументов для argparse."""
+    import yaml
+    with open(path, "r") as f:
+        cfg = yaml.safe_load(f) or {}
+    flat = {}
+    # experiment
+    if "experiment" in cfg:
+        if "seed" in cfg["experiment"]:
+            flat["seed"] = cfg["experiment"]["seed"]
+        if "device" in cfg["experiment"]:
+            flat["device"] = cfg["experiment"]["device"]
+    # data
+    if "data" in cfg:
+        d = cfg["data"]
+        if "data_dir" in d:
+            flat["data_dir"] = d["data_dir"]
+        if "batch_size" in d:
+            flat["batch_size"] = d["batch_size"]
+        if "num_workers" in d:
+            flat["num_workers"] = d["num_workers"]
+        if d.get("max_train") is not None:
+            flat["max_train"] = d["max_train"]
+        if d.get("max_val") is not None:
+            flat["max_val"] = d["max_val"]
+        if d.get("max_test") is not None:
+            flat["max_test"] = d["max_test"]
+    # tda
+    if "tda" in cfg:
+        if "n_bins" in cfg["tda"]:
+            flat["n_bins"] = cfg["tda"]["n_bins"]
+        if "max_radius" in cfg["tda"]:
+            flat["max_radius"] = cfg["tda"]["max_radius"]
+    # model
+    if "model" in cfg:
+        m = cfg["model"]
+        if "name" in m:
+            flat["model"] = m["name"]
+        if "hidden_channels" in m:
+            flat["hidden_channels"] = m["hidden_channels"]
+        if "num_layers" in m:
+            flat["num_layers"] = m["num_layers"]
+        if "num_rbf" in m:
+            flat["num_rbf"] = m["num_rbf"]
+        if "cutoff" in m:
+            flat["cutoff"] = m["cutoff"]
+    # training
+    if "training" in cfg:
+        t = cfg["training"]
+        for k_cli, k_yaml in [
+            ("epochs", "epochs"), ("lr", "lr"), ("weight_decay", "weight_decay"),
+            ("grad_clip", "grad_clip"), ("lr_patience", "lr_patience"),
+            ("patience", "patience"),
+        ]:
+            if k_yaml in t:
+                flat[k_cli] = t[k_yaml]
+    # targets
+    if "targets" in cfg and "target" in cfg["targets"]:
+        flat["target"] = cfg["targets"]["target"]
+    return flat
+
+
 def parse_args():
+    # Сначала парсим только --config, чтобы подгрузить YAML-дефолты.
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("--config", type=str, default=None)
+    pre_known, remaining = pre.parse_known_args()
+
     p = argparse.ArgumentParser(description="Alchemy GeomML + TDA training")
-    p.add_argument("--model", type=str, required=True,
+    p.add_argument("--config", type=str, default=None,
+                   help="Путь к YAML-конфигу (например, configs/default.yaml). "
+                        "Значения из CLI имеют приоритет над значениями из YAML.")
+    p.add_argument("--model", type=str, default=None,
                    choices=["fcnn", "schnet", "egnn", "egnn_tda", "egnn_vector", "egnn_vector_tda"],
                    help="Тип модели")
     p.add_argument("--target", type=str, default="all",
@@ -53,9 +123,9 @@ def parse_args():
     p.add_argument("--checkpoint_dir", type=str, default="checkpoints")
     p.add_argument("--output_dir", type=str, default="results",
                    help="Куда складывать CSV-истории (по умолчанию results/)")
-    p.add_argument("--batch_size", type=int, default=1024)  # v27: 1024 по умолчанию
+    p.add_argument("--batch_size", type=int, default=1024)
     p.add_argument("--epochs", type=int, default=50)
-    p.add_argument("--lr", type=float, default=1e-4)  # НИЖЕ! 5e-4 не учится
+    p.add_argument("--lr", type=float, default=1e-4)
     p.add_argument("--weight_decay", type=float, default=1e-5)
     p.add_argument("--hidden_channels", type=int, default=128)
     p.add_argument("--num_layers", type=int, default=6)
@@ -84,7 +154,17 @@ def parse_args():
     p.add_argument("--num_workers", type=int, default=4,
                    help="Кол-во worker процессов для DataLoader (v30). "
                         "0 = без workers (медленно). По умолчанию 4.")
-    return p.parse_args()
+
+    # YAML как default: CLI > YAML > argparse default.
+    if pre_known.config is not None:
+        yaml_cfg = _load_yaml_config(pre_known.config)
+        # set_defaults переопределяет argparse-дефолт, но CLI переопределит yaml
+        p.set_defaults(**yaml_cfg)
+
+    args = p.parse_args()
+    if args.model is None:
+        p.error("--model обязателен (через CLI или через --config с model.name)")
+    return args
 
 
 def build_model(args, tda_dim: int = 0):
