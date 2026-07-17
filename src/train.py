@@ -153,6 +153,10 @@ def parse_args():
                    help="Лимит тестовых молекул (для отладки)")
     p.add_argument("--n_bins", type=int, default=16, help="TDA Betti bins")
     p.add_argument("--max_radius", type=float, default=5.0, help="TDA радиус")
+    p.add_argument("--tda_mode", type=str, default="concat",
+                   choices=["concat", "film"],
+                   help="Способ интеграции TDA: concat (по умолчанию) или film "
+                        "(FiLM-модуляция mol_emb через TDA)")
     p.add_argument("--patience", type=int, default=15, help="Early stopping patience")
     p.add_argument("--min_delta", type=float, default=0.0, help="Early stopping min delta")
     p.add_argument("--lr_patience", type=int, default=5, help="ReduceLROnPlateau patience")
@@ -215,6 +219,7 @@ def build_model(args, tda_dim: int = 0):
             k_neighbors=args.k_neighbors,
             m_dim=args.m_dim,
             tda_dim=tda_dim or tda_feature_dim(args.n_bins),
+            tda_mode=args.tda_mode,
             predict_mu=pred_mu,
             predict_alpha=pred_alpha,
             predict_gap=pred_gap,
@@ -241,6 +246,7 @@ def build_model(args, tda_dim: int = 0):
             k_neighbors=args.k_neighbors,
             m_dim=args.m_dim,
             tda_dim=tda_dim or tda_feature_dim(args.n_bins),
+            tda_mode=args.tda_mode,
             predict_alpha=pred_alpha,
             predict_gap=pred_gap,
         )

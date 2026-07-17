@@ -37,6 +37,9 @@ def main():
     p.add_argument("--cutoff", type=float, default=5.0)
     p.add_argument("--k_neighbors", type=int, default=16)
     p.add_argument("--m_dim", type=int, default=32)
+    p.add_argument("--tda_mode", type=str, default="concat",
+                   choices=["concat", "film"],
+                   help="Способ интеграции TDA: concat (по умолчанию) или film")
     p.add_argument("--lr", type=float, default=1e-3,
                    help="Learning rate. 1e-3 — canonical default для EGNN.")
     p.add_argument("--patience", type=int, default=15)
@@ -118,6 +121,7 @@ def main():
         # TDA-специфичные параметры
         if model_name in ("egnn_tda", "egnn_vector_tda"):
             argv.extend(['--n_bins', '16'])
+            argv.extend(['--tda_mode', args.tda_mode])
 
         sys.argv = argv
 

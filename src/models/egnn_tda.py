@@ -1,9 +1,15 @@
-"""EGNN + TDA: EGNN с топологическими признаками (конкатенация).
+"""EGNN + TDA: EGNN с топологическими признаками.
+
+v32: TDA-фичи нормализуются через BatchNorm1d перед интеграцией.
+Поддерживаются два режима интеграции (--tda_mode):
+  - 'concat' (default): TDA нормализуется и конкатенируется с mol_emb.
+  - 'film':              TDA нормализуется и используется для FiLM-модуляции mol_emb.
 
 Архитектура:
   - Базовый EGNN (update_coors=False)
   - TDA-фичи (52D): Betti curves H_0/H_1/H_2 + persistence entropy
-  - TDA конкатенируется с mol_emb перед heads
+  - BatchNorm1d(tda_dim) — критично: Betti counts O(10^2) без нормализации
+    доминируют над LayerNorm-нормализованным mol_emb.
   - Отдельные heads для mu, alpha, gap
 """
 import torch
@@ -18,6 +24,7 @@ except ImportError:
     EGNN_AVAILABLE = False
 
 from .knn import knn_graph_pytorch as knn_graph
+from tda.film import FiLMModulation
 
 NUM_ATOM_TYPES = 7
 
@@ -31,6 +38,7 @@ class EGNNTDA(nn.Module):
         k_neighbors: int = 16,
         m_dim: int = 32,
         tda_dim: int = 52,
+        tda_mode: str = "concat",
         predict_mu: bool = True,
         predict_alpha: bool = True,
         predict_gap: bool = True,
@@ -39,12 +47,14 @@ class EGNNTDA(nn.Module):
         super().__init__()
         if not EGNN_AVAILABLE:
             raise ImportError("egnn-pytorch не установлен: pip install egnn-pytorch")
+        assert tda_mode in ("concat", "film"), f"Unknown tda_mode: {tda_mode}"
 
         self.hidden_channels = hidden_channels
         self.cutoff = cutoff
         self.k_neighbors = k_neighbors
         self.m_dim = m_dim
         self.tda_dim = tda_dim
+        self.tda_mode = tda_mode
         self.predict_mu = predict_mu
         self.predict_alpha = predict_alpha
         self.predict_gap = predict_gap
@@ -68,8 +78,18 @@ class EGNNTDA(nn.Module):
         self.final_norm = nn.LayerNorm(hidden_channels)
         self.global_norm = nn.LayerNorm(NUM_ATOM_TYPES + 2)
 
+        # v32: нормализация TDA-фичей — критично для стабильности
+        self.tda_norm = nn.BatchNorm1d(tda_dim)
+
         global_dim = NUM_ATOM_TYPES + 2
-        head_in = hidden_channels + global_dim + tda_dim
+
+        if tda_mode == "concat":
+            head_in = hidden_channels + global_dim + tda_dim
+            self.film = None
+        elif tda_mode == "film":
+            # FiLM модулирует mol_emb (hidden_channels) через TDA
+            self.film = FiLMModulation(tda_dim=tda_dim, feat_dim=hidden_channels)
+            head_in = hidden_channels + global_dim  # TDA не конкатенируется
 
         # ОТДЕЛЬНЫЕ heads
         if predict_mu:
@@ -114,10 +134,20 @@ class EGNNTDA(nn.Module):
         global_desc = self._global_descriptors(batch)
         global_desc = self.global_norm(global_desc)
 
-        parts = [mol_emb, global_desc]
-        if hasattr(batch, 'tda'):
-            parts.append(batch.tda)
-        mol_emb = torch.cat(parts, dim=-1)
+        # v32: нормализуем TDA перед использованием
+        if not hasattr(batch, 'tda'):
+            raise ValueError(
+                "Модель expects TDA-фичи (tda_dim > 0), но batch.tda отсутствует. "
+                "Создайте датасет с tda_features=True или используйте модель без TDA."
+            )
+        tda_feat = self.tda_norm(batch.tda)
+
+        if self.tda_mode == "concat":
+            parts = [mol_emb, global_desc, tda_feat]
+            mol_emb = torch.cat(parts, dim=-1)
+        else:  # film
+            mol_emb = self.film(mol_emb, tda_feat)
+            mol_emb = torch.cat([mol_emb, global_desc], dim=-1)
 
         result = {}
         if self.predict_mu:
