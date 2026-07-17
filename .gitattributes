@@ -1,0 +1,38 @@
+# Git LFS tracking (v32+)
+#
+# Чтобы использовать Git LFS для чекпойнтов:
+#   1. Установите git-lfs: https://git-lfs.com/
+#   2. Активируйте в репозитории: git lfs install
+#   3. Раскомментируйте строки ниже
+#   4. git add .gitattributes
+#   5. Добавьте чекпойнты: git add checkpoints/*.pt
+#   6. git commit -m "add checkpoints via LFS"
+#
+# Без Git LFS чекпойнты остаются исключёнными через .gitignore.
+# Это сохраняет репозиторий компактным, но не позволяет воспроизвести
+# эксперимент по чекпойнту без повторного обучения.
+#
+# Альтернатива: DVC (https://dvc.org/) — работает похоже, но с
+# поддержкой S3/GCS/Azure remote storage.
+#
+# *.pt filter=lfs diff=lfs merge=lfs -text
+# *.pth filter=lfs diff=lfs merge=lfs -text
+# *.ckpt filter=lfs diff=lfs merge=lfs -text
+
+# Текстовые файлы всегда как text (для кросс-платформенной совместимости)
+*.py text
+*.md text
+*.yaml text
+*.yml text
+*.toml text
+*.ini text
+*.txt text
+*.csv text
+*.json text
+
+# Бинарные файлы — без diff/merge
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.zip binary
