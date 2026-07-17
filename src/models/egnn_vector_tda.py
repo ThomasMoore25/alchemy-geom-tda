@@ -22,7 +22,12 @@ except ImportError:
     EGNN_AVAILABLE = False
 
 from .knn import knn_graph_pytorch as knn_graph
-from tda.film import FiLMModulation
+
+# v32: dual import — см. egnn_tda.py
+try:
+    from tda.film import FiLMModulation
+except ImportError:
+    from ..tda.film import FiLMModulation
 
 NUM_ATOM_TYPES = 7
 

@@ -1,1 +1,27 @@
-"""__init__.py для src.tda"""
+"""src.tda — экспорты TDA-модуля (v32+).
+
+Удобный импорт:
+    from src.tda import extract_tda_features, tda_feature_dim
+    from src.tda import FiLMModulation, FiLMNodeModulation
+"""
+
+from .features import (
+    extract_tda_features,
+    extract_tda_features_batch,
+    tda_feature_dim,
+    compute_persistence,
+    betti_curve,
+    persistence_entropy,
+)
+from .film import FiLMModulation, FiLMNodeModulation
+
+__all__ = [
+    "extract_tda_features",
+    "extract_tda_features_batch",
+    "tda_feature_dim",
+    "compute_persistence",
+    "betti_curve",
+    "persistence_entropy",
+    "FiLMModulation",
+    "FiLMNodeModulation",
+]
