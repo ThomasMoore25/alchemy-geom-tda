@@ -12,6 +12,8 @@
 """
 class EarlyStopping:
     def __init__(self, metrics_config, stop_mode='and', save_metric=None, patience=3, min_delta=0.0):
+        if stop_mode not in ('and', 'or'):
+            raise ValueError(f"stop_mode must be 'and' or 'or', got: {stop_mode}")
         self.metrics_config = metrics_config
         self.stop_mode = stop_mode
         self.save_metric = save_metric
@@ -68,12 +70,11 @@ class EarlyStopping:
             self.last_saved = True  # v27: флаг для лога
 
         total = len(self.metrics_config)
+        # stop_mode проверяется в __init__, здесь безопасно
         if self.stop_mode == 'and':
             stop = stopped_count == total
-        elif self.stop_mode == 'or':
+        else:  # 'or'
             stop = stopped_count > 0
-        else:
-            raise ValueError("stop_mode must be 'and' or 'or'")
         return stop
 
     def format_counters(self) -> str:
