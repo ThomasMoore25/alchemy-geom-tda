@@ -133,6 +133,8 @@ class EGNNVectorTDA(nn.Module):
         h = x[:, 3:]
 
         # === Эквивариантный диполь ===
+        # Замечание: см. egnn_vector.py — повторный расчёт COM нужен
+        # из-за update_coors=True в EGNN-слоях.
         q = self.charge_head(h)
         mass = batch.x[:, -1:]
         weighted_coors = updated_coors * mass
