@@ -1,0 +1,29 @@
+# pyproject.toml — конфигурация инструментов разработки.
+# Пакет не устанавливается через pip install -e . (используются sys.path хаки
+# для запуска python src/train.py и python src/run_all.py напрямую).
+# Этот файл содержит только конфигурацию pytest/ruff/black/mypy.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+filterwarnings = [
+    "ignore::DeprecationWarning:torch.jit._script",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]  # line length handled by black
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+warn_unused_ignores = false
+warn_redundant_casts = true
