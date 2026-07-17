@@ -34,6 +34,15 @@ from src.data import (
 CACHE_VERSION = "v32"
 
 
+def _tda_worker(coords: np.ndarray, n_bins: int = 16, max_radius: float = 5.0) -> np.ndarray:
+    """Worker-функция для multiprocessing.Pool — вычисляет TDA-фичи одной молекулы.
+
+    Должна быть на уровне модуля (не лямбда), чтобы быть picklable.
+    """
+    from src.tda.features import extract_tda_features
+    return extract_tda_features(coords, n_bins=n_bins, max_radius=max_radius)
+
+
 class AlchemyDataset(InMemoryDataset):
     """PyG датасет для Alchemy v20191129.
 
@@ -45,6 +54,7 @@ class AlchemyDataset(InMemoryDataset):
         n_bins: число бинов для Betti curves
         max_radius: радиус фильтрации TDA
         seed: сид для split
+        n_jobs: число процессов для TDA-расчёта (v32+). 1 = последовательно.
     """
 
     def __init__(
@@ -56,6 +66,7 @@ class AlchemyDataset(InMemoryDataset):
         n_bins: int = 16,
         max_radius: float = 5.0,
         seed: int = 42,
+        n_jobs: int = 1,
         transform=None,
         pre_transform=None,
         pre_filter=None,
@@ -66,6 +77,7 @@ class AlchemyDataset(InMemoryDataset):
         self.n_bins = n_bins
         self.max_radius = max_radius
         self.seed = seed
+        self.n_jobs = max(1, n_jobs)
         super().__init__(root, transform, pre_transform, pre_filter)
         self.load(self.processed_paths[0])
 
@@ -77,6 +89,7 @@ class AlchemyDataset(InMemoryDataset):
     def processed_file_names(self):
         # Стабильный хеш от всех параметров, влияющих на содержимое .pt.
         # При любом изменении → новый хеш → PyG пересчитает кэш.
+        # n_jobs НЕ входит в хеш — от него не зависит содержимое, только скорость.
         params = {
             "cache_version": CACHE_VERSION,
             "split": self.split,
@@ -178,20 +191,57 @@ class AlchemyDataset(InMemoryDataset):
         data_list = []
         props_dict = props.set_index("gdb_idx").to_dict("index")
 
-        if self.tda_features:
-            from src.tda.features import extract_tda_features
-
+        # v32: предпарсим все SDF и сохраним arr["pos"] для TDA
+        # Это позволяет распараллелить TDA-расчёт через multiprocessing
+        parsed_data = []  # list of (gdb_idx, arr, props_row)
         for i, gdb_idx in enumerate(indices):
             if i % 5000 == 0:
-                print(f"  Обработано {i}/{len(indices)}")
-
+                print(f"  Парсинг SDF: {i}/{len(indices)}")
             mol = parse_sdf(sdf_files[gdb_idx])
             if mol is None:
                 continue
-
             arr = mol_to_arrays(mol)
             props_row = props_dict[gdb_idx]
+            parsed_data.append((gdb_idx, arr, props_row))
 
+        # v32: TDA-расчёт — параллельный через multiprocessing.Pool если n_jobs > 1
+        tda_features_list = None
+        if self.tda_features:
+            from src.tda.features import extract_tda_features
+
+            coords_list = [arr["pos"] for _, arr, _ in parsed_data]
+            n = len(coords_list)
+            print(f"  TDA-расчёт для {n} молекул (n_jobs={self.n_jobs}) ...")
+
+            if self.n_jobs > 1 and n > 100:
+                # Параллельный режим
+                from multiprocessing import Pool
+                import functools
+
+                worker = functools.partial(
+                    _tda_worker,
+                    n_bins=self.n_bins,
+                    max_radius=self.max_radius,
+                )
+                with Pool(self.n_jobs) as pool:
+                    # chunksize для уменьшения overhead
+                    chunksize = max(1, n // (self.n_jobs * 10))
+                    tda_features_list = pool.map(
+                        worker, coords_list, chunksize=chunksize
+                    )
+            else:
+                # Последовательный режим
+                tda_features_list = []
+                for i, c in enumerate(coords_list):
+                    if i % 5000 == 0:
+                        print(f"  TDA: {i}/{n}")
+                    tda_features_list.append(
+                        extract_tda_features(c, n_bins=self.n_bins,
+                                              max_radius=self.max_radius)
+                    )
+
+        # Собираем Data объекты
+        for i, (gdb_idx, arr, props_row) in enumerate(parsed_data):
             data = Data(
                 x=torch.from_numpy(arr["x"]),
                 pos=torch.from_numpy(arr["pos"]),
@@ -203,10 +253,8 @@ class AlchemyDataset(InMemoryDataset):
                 gdb_idx=torch.tensor([gdb_idx], dtype=torch.long),
             )
 
-            if self.tda_features:
-                tda = extract_tda_features(
-                    arr["pos"], n_bins=self.n_bins, max_radius=self.max_radius
-                )
+            if tda_features_list is not None:
+                tda = tda_features_list[i]
                 data.tda = torch.from_numpy(tda).unsqueeze(0)  # (1, 52) для PyG
 
             data_list.append(data)
