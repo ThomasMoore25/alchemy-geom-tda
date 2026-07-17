@@ -1,11 +1,10 @@
 """Тесты для src.data — атомные типы, массы, базовые функции без датасета."""
-import pytest
 import numpy as np
 
 from src.data import (
+    ATOM_TO_IDX,
     ATOM_TYPES,
     ATOMIC_MASSES,
-    ATOM_TO_IDX,
     atoms_to_features,
     bonds_to_edge_index,
     mol_to_arrays,

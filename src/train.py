@@ -24,27 +24,23 @@
       --checkpoint checkpoints/egnn_tda_all_best.pt --noise 0.10
 """
 import argparse
-import os
 import sys
 import time
 from pathlib import Path
 
-import numpy as np
 import torch
-import torch.nn as nn
 import torch.optim as optim
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from utils import seed_everything, get_device, setup_logger
-from metrics import mae, mu_mae, alpha_mae, gap_mae
-from tda.features import extract_tda_features, tda_feature_dim
+from tda.features import tda_feature_dim
+from utils import seed_everything, setup_logger
 
 
 def _load_yaml_config(path: str) -> dict:
     """Загрузить YAML-конфиг. Возвращает плоский dict аргументов для argparse."""
     import yaml
-    with open(path, "r") as f:
+    with open(path) as f:
         cfg = yaml.safe_load(f) or {}
     flat = {}
     # experiment
@@ -430,9 +426,9 @@ def main():
         json.dump({k: list(v) for k, v in target_stats.items()}, f, indent=2)
     logger.info(f"→ target_stats сохранены в {stats_path}")
 
-    from torch_geometric.loader import DataLoader as PyGDataLoader
-    from torch_geometric.loader import DataListLoader
     from torch_geometric.data import Batch
+    from torch_geometric.loader import DataListLoader
+    from torch_geometric.loader import DataLoader as PyGDataLoader
 
     # v29: PyG DataParallel требует DataListLoader (возвращает list[Data] вместо Batch)
     use_multi_gpu = (args.multi_gpu and torch.cuda.device_count() > 1
@@ -483,7 +479,6 @@ def main():
             logger.info(f"  test_{k}: {v:.4f}")
         return
 
-    best_val = float("inf")
     Path(args.checkpoint_dir).mkdir(parents=True, exist_ok=True)
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)  # v27: output_dir вместо жёсткого results
     ckpt_path = Path(args.checkpoint_dir) / f"{args.model}_{args.target}_best.pt"
@@ -499,9 +494,12 @@ def main():
         stop_mode = 'or'  # не имеет значения при одной метрике
     else:
         es_config = {'val_loss': 'min'}
-        if args.target in ('mu', 'all'): es_config['val_mu_mae'] = 'min'
-        if args.target in ('alpha', 'all'): es_config['val_alpha_mae'] = 'min'
-        if args.target in ('gap', 'all'): es_config['val_gap_mae'] = 'min'
+        if args.target in ('mu', 'all'):
+            es_config['val_mu_mae'] = 'min'
+        if args.target in ('alpha', 'all'):
+            es_config['val_alpha_mae'] = 'min'
+        if args.target in ('gap', 'all'):
+            es_config['val_gap_mae'] = 'min'
         stop_mode = args.es_mode  # 'and' or 'or'
 
     early_stopping = EarlyStopping(
@@ -574,9 +572,12 @@ def main():
 
         # === Early Stopping проверка ===
         metrics_to_track = {'val_loss': val_loss}
-        if 'mu_mae' in val_metrics: metrics_to_track['val_mu_mae'] = val_metrics['mu_mae']
-        if 'alpha_mae' in val_metrics: metrics_to_track['val_alpha_mae'] = val_metrics['alpha_mae']
-        if 'gap_mae' in val_metrics: metrics_to_track['val_gap_mae'] = val_metrics['gap_mae']
+        if 'mu_mae' in val_metrics:
+            metrics_to_track['val_mu_mae'] = val_metrics['mu_mae']
+        if 'alpha_mae' in val_metrics:
+            metrics_to_track['val_alpha_mae'] = val_metrics['alpha_mae']
+        if 'gap_mae' in val_metrics:
+            metrics_to_track['val_gap_mae'] = val_metrics['gap_mae']
 
         # v27: EarlyStopping вызов + расширенный лог
         stop = early_stopping(metrics_to_track, _underlying)
@@ -636,6 +637,7 @@ def main():
 
     # === Сохранение истории в CSV ===
     import csv
+
     # v28: дата+время в имени файла
     from datetime import datetime
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")

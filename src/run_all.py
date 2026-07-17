@@ -156,7 +156,10 @@ def main():
 
     # v28: собираем summary CSV из последних history каждого model run
     summary_rows = []
-    import glob, os, pandas as pd
+    import glob
+    import os
+
+    import pandas as pd
     for model_name in models:
         # Ищем все history-CSV этой модели, берём самый свежий по mtime
         csvs = sorted(glob.glob(f"{args.output_dir}/history_{model_name}_*.csv"),

@@ -48,7 +48,8 @@ class AverageMeter:
         return self.sum / max(1, self.count)
 
 
-def setup_logger(name: str, log_file: str | None = None) -> "logging.Logger":
+def setup_logger(name: str, log_file: str | None = None):
+    """Создать и настроить logger. Возвращает logging.Logger."""
     import logging
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)

@@ -52,7 +52,6 @@ def test_es_stop_when_patience_reached():
     es({'val_loss': 1.0}, m)  # improve, counter=0
     es({'val_loss': 1.1}, m)  # no improve, counter=1
     es({'val_loss': 1.2}, m)  # no improve, counter=2 -> stop
-    stop = es({'val_loss': 1.3}, m)  # Actually need 3rd call for counter=3
     # Подожди, patience=2 означает остановку когда counter >= patience
     # counter=0 (improve), 1, 2 -> stop=True at counter=2? Let me re-read source
     # Looking at early_stopping.py:

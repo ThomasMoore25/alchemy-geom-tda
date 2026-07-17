@@ -26,8 +26,8 @@ import argparse
 import os
 from pathlib import Path
 
-import pandas as pd
 import matplotlib.pyplot as plt
+import pandas as pd
 
 
 def plot_training_history(
@@ -136,8 +136,8 @@ def compare_histories(
         ("val_gap_mae", "gap MAE (Hartree)", "val_gap_mae"),
     ]
 
-    for ax, (col, title_str, _) in zip(axes.flat, metrics):
-        for csv_path, label in zip(csv_paths, labels):
+    for ax, (col, title_str, _) in zip(axes.flat, metrics, strict=False):
+        for csv_path, label in zip(csv_paths, labels, strict=False):
             hist = pd.read_csv(csv_path)
             if col in hist.columns:
                 ax.plot(hist["epoch"], hist[col], label=label, linewidth=2)
@@ -247,7 +247,7 @@ def plot_parity(
         axes = [axes]
     fig.suptitle(f"Parity: {title}", fontsize=14, fontweight="bold")
 
-    for ax, t in zip(axes, targets):
+    for ax, t in zip(axes, targets, strict=False):
         train_col = f"train_{t}_mae"
         val_col = f"val_{t}_mae"
         ax.plot(hist["epoch"], hist[train_col], label="train", color="steelblue", linewidth=2)

@@ -2,7 +2,6 @@
 
 Использует knn_graph_pytorch вместо RadiusInteractionGraph.
 """
-import torch
 import torch.nn as nn
 from torch import Tensor
 from torch_geometric.nn import SchNet

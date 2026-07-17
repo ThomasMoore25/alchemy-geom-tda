@@ -13,8 +13,6 @@
 Эти фичи E(3)-инвариантны (топология не меняется при изометриях).
 """
 import numpy as np
-import torch
-from torch import Tensor
 
 try:
     import gudhi as gd

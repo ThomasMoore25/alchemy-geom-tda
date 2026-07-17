@@ -13,19 +13,21 @@ PyG датасет для Alchemy v20191129.
     инвалидирует кэш (v32+).
 """
 import hashlib
-import os
 import sys
 from pathlib import Path
 
 import numpy as np
 import torch
-from torch_geometric.data import InMemoryDataset, Data
+from torch_geometric.data import Data, InMemoryDataset
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.data import (
     ATOM_TYPES,
     ATOMIC_MASSES,
-    load_properties_csv, find_sdf_files, parse_sdf, mol_to_arrays,
+    find_sdf_files,
+    load_properties_csv,
+    mol_to_arrays,
+    parse_sdf,
     stratified_split_by_gap,
 )
 
@@ -215,8 +217,8 @@ class AlchemyDataset(InMemoryDataset):
 
             if self.n_jobs > 1 and n > 100:
                 # Параллельный режим
-                from multiprocessing import Pool
                 import functools
+                from multiprocessing import Pool
 
                 worker = functools.partial(
                     _tda_worker,

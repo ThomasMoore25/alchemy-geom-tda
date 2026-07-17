@@ -1,6 +1,4 @@
 """Тесты для src.tda.features — функции TDA без GUDHI."""
-import pytest
-import numpy as np
 
 from tda.features import tda_feature_dim
 

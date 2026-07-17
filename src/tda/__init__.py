@@ -6,12 +6,12 @@
 """
 
 from .features import (
+    betti_curve,
+    compute_persistence,
     extract_tda_features,
     extract_tda_features_batch,
-    tda_feature_dim,
-    compute_persistence,
-    betti_curve,
     persistence_entropy,
+    tda_feature_dim,
 )
 from .film import FiLMModulation, FiLMNodeModulation
 

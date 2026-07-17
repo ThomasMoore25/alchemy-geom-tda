@@ -58,7 +58,7 @@ class EarlyStopping:
         if self.save_metric is None:
             save = improved_any
         else:
-            curr = metrics_dict.get(self.save_metric)
+            # best_values уже обновлён выше, если было улучшение.
             best = self.best_values[self.save_metric]
             # Внимание: best_values уже обновлён выше, если было улучшение.
             # Поэтому сравниваем с current и previous best через приближение:

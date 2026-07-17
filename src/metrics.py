@@ -3,7 +3,6 @@
 v32+: добавлены r2_score и rmse используется в train.py (раньше был объявлен, но не вызывался).
 """
 import torch
-import torch.nn.functional as F
 from torch import Tensor
 
 

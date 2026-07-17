@@ -1,10 +1,12 @@
 """Тесты для src.dataset::AlchemyDataset — кэш-хеширование и параметры."""
 import sys
-import pytest
 from pathlib import Path
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from dataset import AlchemyDataset, CACHE_VERSION
+from dataset import CACHE_VERSION, AlchemyDataset
 
 
 class _NS:
@@ -105,9 +107,10 @@ def test_n_jobs_not_in_cache_hash():
 
 def test_tda_worker_callable():
     """_tda_worker можно вызвать и возвращает ndarray правильной размерности."""
-    import numpy as np
     import sys
     from pathlib import Path
+
+    import numpy as np
     sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
     # _tda_worker импортирует gudhi лениво, должен работать
     # если gudhi установлен

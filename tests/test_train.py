@@ -1,14 +1,18 @@
 """Тесты для src.train — parse_args, build_model, compute_loss, compute_metrics."""
 import sys
+
 import pytest
 import torch
-from torch_geometric.data import Data, Batch
+from torch_geometric.data import Batch, Data
 
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).parent.parent / "src"))
 
 from train import (
-    parse_args, _load_yaml_config, build_model,
-    compute_loss, compute_metrics, _unpack_preds,
+    _load_yaml_config,
+    _unpack_preds,
+    compute_loss,
+    compute_metrics,
+    parse_args,
 )
 
 

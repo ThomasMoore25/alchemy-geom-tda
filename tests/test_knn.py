@@ -1,5 +1,4 @@
 """Тесты для src.models.knn::knn_graph_pytorch."""
-import pytest
 import torch
 
 from models.knn import knn_graph_pytorch
@@ -7,7 +6,9 @@ from models.knn import knn_graph_pytorch
 
 def _edges_set(edge_index: torch.Tensor) -> set[tuple[int, int]]:
     """Множество рёбер (src, dst) для сравнения без учёта порядка."""
-    return set(zip(edge_index[0].tolist(), edge_index[1].tolist()))
+    # strict=False намеренно: edge_index[0] и edge_index[1] всегда одинаковой длины,
+    # но мы не хотим падать, если кто-то передаст неправильный тензор.
+    return set(zip(edge_index[0].tolist(), edge_index[1].tolist(), strict=False))
 
 
 def test_knn_single_molecule():

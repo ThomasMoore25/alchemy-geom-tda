@@ -1,8 +1,7 @@
 """Тесты для src.metrics."""
-import pytest
 import torch
 
-from metrics import mae, rmse, r2_score, mu_mae, alpha_mae, gap_mae, METRIC_REGISTRY
+from metrics import METRIC_REGISTRY, alpha_mae, gap_mae, mae, mu_mae, r2_score, rmse
 
 
 def test_mae_basic():
