@@ -7,7 +7,12 @@ PyG датасет для Alchemy v20191129.
   - Train/Val/Test: 162063/20257/20259 молекул (80/10/10)
   - TDA-фичи вычисляются один раз и кэшируются (52D на молекулу)
   - Поддержка max_samples для отладки (лимит на каждый сплит отдельно)
+  - Имя .pt-кэша зависит от хеша всех параметров, влияющих на содержимое
+    (split, max_samples, tda, n_bins, max_radius, seed, atom_types, cache_version).
+    Любое изменение логики process() или этих параметров автоматически
+    инвалидирует кэш (v32+).
 """
+import hashlib
 import os
 import sys
 from pathlib import Path
@@ -18,9 +23,15 @@ from torch_geometric.data import InMemoryDataset, Data
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.data import (
+    ATOM_TYPES,
+    ATOMIC_MASSES,
     load_properties_csv, find_sdf_files, parse_sdf, mol_to_arrays,
     stratified_split_by_gap,
 )
+
+# Bump this when changing logic of process(), mol_to_arrays, parse_sdf,
+# stratified_split_by_gap, or Data field schema. Forces cache invalidation.
+CACHE_VERSION = "v32"
 
 
 class AlchemyDataset(InMemoryDataset):
@@ -64,12 +75,32 @@ class AlchemyDataset(InMemoryDataset):
 
     @property
     def processed_file_names(self):
-        suffix = f"_{self.split}"
+        # Стабильный хеш от всех параметров, влияющих на содержимое .pt.
+        # При любом изменении → новый хеш → PyG пересчитает кэш.
+        params = {
+            "cache_version": CACHE_VERSION,
+            "split": self.split,
+            "max_samples": self.max_samples,
+            "tda_features": self.tda_features,
+            "n_bins": self.n_bins,
+            "max_radius": self.max_radius,
+            "seed": self.seed,
+            "atom_types": ATOM_TYPES,
+            "atomic_masses": ATOMIC_MASSES,
+            # Сигнатура Data-объекта (какие поля хранятся)
+            "data_fields": ["x", "pos", "edge_index", "edge_attr",
+                            "mu", "alpha", "gap", "gdb_idx", "tda"],
+        }
+        param_str = repr(sorted(params.items()))
+        h = hashlib.sha1(param_str.encode("utf-8")).hexdigest()[:12]
+        # Сохраняем split/max_samples в имени для читаемости (без влияния на логику):
+        # кэш инвалидируется по хешу, не по этой строке.
+        readable = f"alchemy_{CACHE_VERSION}_{self.split}"
         if self.max_samples is not None:
-            suffix += f"_max{self.max_samples}"
+            readable += f"_max{self.max_samples}"
         if self.tda_features:
-            suffix += f"_tda{self.n_bins}"
-        return [f"alchemy_v26{suffix}.pt"]
+            readable += f"_tda{self.n_bins}"
+        return [f"{readable}_{h}.pt"]
 
     def download(self):
         if not (Path(self.root) / "Alchemy-v20191129").exists():
