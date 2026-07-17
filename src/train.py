@@ -481,7 +481,8 @@ def main():
         t0 = time.time()
         # === Train ===
         model.train()
-        train_loss_sum = 0.0  # v30: накапливаем loss как float (один .item() в конце)
+        # v32: явная инициализация tensor на device для безопасности multi-GPU
+        train_loss_sum = torch.zeros((), device=device)  # GPU тензор
         train_loss_count = 0
         train_metric_sums = {}  # v30: накапливаем GPU-тензоры
         train_counts = 0
@@ -505,18 +506,20 @@ def main():
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
-            # v30: НЕ вызываем .item() здесь — откладываем до конца эпохи
-            train_loss_sum += loss.detach() * num_graphs  # GPU тензор
+            # v30 + v32: detach + явный .to(device) для multi-GPU безопасности
+            train_loss_sum = train_loss_sum + loss.detach().to(device) * num_graphs
             train_loss_count += num_graphs
 
             with torch.no_grad():
                 # v30: as_item=False — метрики как GPU-тензоры
                 tr_metrics = compute_metrics(preds, batch, args.target, target_stats, as_item=False)
                 for k, v in tr_metrics.items():
+                    # v32: явно на device для multi-GPU
+                    v_dev = v.detach().to(device) * num_graphs
                     if k not in train_metric_sums:
-                        train_metric_sums[k] = v.detach() * num_graphs
+                        train_metric_sums[k] = v_dev
                     else:
-                        train_metric_sums[k] = train_metric_sums[k] + v.detach() * num_graphs
+                        train_metric_sums[k] = train_metric_sums[k] + v_dev
                 train_counts += num_graphs
 
         # v30: ОДНА синхронизация GPU→CPU в конце эпохи
