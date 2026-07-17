@@ -140,6 +140,13 @@ def parse_args():
                    help="Размерность m в EGNN_Sparse")
     p.add_argument("--noise", type=float, default=0.0,
                    help="Шум в координатах (для robustness test)")
+    p.add_argument("--noise_mode", type=str, default="test_only",
+                   choices=["test_only", "train_val_test", "train_only", "eval_only"],
+                   help="Куда добавлять шум: "
+                        "test_only (default, v31 behavior) — только test, "
+                        "train_val_test — train+val+test (consistent eval), "
+                        "train_only — только train (data augmentation), "
+                        "eval_only — val+test (no train augmentation)")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--eval_only", action="store_true",
                    help="Только оценка (нужен --checkpoint)")
@@ -475,7 +482,8 @@ def main():
                 batch = batch_or_list.to(device)
                 data_list = None
                 num_graphs = batch.num_graphs
-            if args.noise > 0:
+            # v32: noise_mode управляет, куда добавлять шум
+            if args.noise > 0 and args.noise_mode in ("train_val_test", "train_only"):
                 batch.pos = batch.pos + torch.randn_like(batch.pos) * args.noise
             optimizer.zero_grad()
             preds = model(data_list) if use_multi_gpu else model(batch)
@@ -615,8 +623,19 @@ def evaluate(model, loader, device, args, logger, prefix="val",
                 batch = batch_or_list.to(device)
                 num_graphs = batch.num_graphs
                 preds = model(batch)
-            if args.noise > 0 and prefix == "test":
-                batch.pos = batch.pos + torch.randn_like(batch.pos) * args.noise
+            # v32: noise_mode управляет, куда добавлять шум в evaluate()
+            # test_only: только test (default, для robustness eval чистой модели)
+            # train_val_test: train+val+test (consistent eval при обучении с шумом)
+            # train_only: только train (evaluate без шума)
+            # eval_only: val+test (no train augmentation, only eval-robustness)
+            if args.noise > 0:
+                if args.noise_mode == "test_only" and prefix == "test":
+                    batch.pos = batch.pos + torch.randn_like(batch.pos) * args.noise
+                elif args.noise_mode == "train_val_test" and prefix in ("val", "test"):
+                    batch.pos = batch.pos + torch.randn_like(batch.pos) * args.noise
+                elif args.noise_mode == "eval_only" and prefix in ("val", "test"):
+                    batch.pos = batch.pos + torch.randn_like(batch.pos) * args.noise
+                # train_only: no noise in evaluate()
             loss = compute_loss(preds, batch, args.target, target_stats)
             metrics = compute_metrics(preds, batch, args.target, target_stats)
 
