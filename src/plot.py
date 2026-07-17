@@ -52,7 +52,7 @@ def plot_training_history(
         fname = os.path.basename(csv_path)
         title = fname.replace("history_", "").replace(".csv", "")
 
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10), constrained_layout=True)
     fig.suptitle(f"Training curves: {title}", fontsize=14, fontweight="bold")
 
     # 1. Loss
@@ -94,12 +94,10 @@ def plot_training_history(
     axes[1, 1].legend()
     axes[1, 1].grid(True, alpha=0.3)
 
-    plt.tight_layout()
-
     # Сохраняем
     if save_path:
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
-        plt.savefig(save_path, dpi=100, bbox_inches="tight")
+        plt.savefig(save_path, dpi=100)
         print(f"График сохранён: {save_path}")
 
     if show:
@@ -128,7 +126,7 @@ def compare_histories(
     if labels is None:
         labels = [os.path.basename(p).replace("history_", "").replace(".csv", "") for p in csv_paths]
 
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10), constrained_layout=True)
     fig.suptitle(title, fontsize=14, fontweight="bold")
 
     metrics = [
@@ -149,11 +147,9 @@ def compare_histories(
         ax.legend()
         ax.grid(True, alpha=0.3)
 
-    plt.tight_layout()
-
     if save_path:
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
-        plt.savefig(save_path, dpi=100, bbox_inches="tight")
+        plt.savefig(save_path, dpi=100)
         print(f"График сравнения сохранён: {save_path}")
 
     if show:
