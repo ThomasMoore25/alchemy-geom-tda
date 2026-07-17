@@ -292,8 +292,14 @@ def compute_loss(preds, batch, target: str, target_stats: dict | None = None) ->
     """Вычислить loss. Для векторного mu (B,3) — сравниваем норму со скалярным таргетом.
 
     v32: добавлен clamp(min=eps) при взятии нормы вектора, чтобы избежать
-    сингулярности градиента d|x|/dx = x/|x| при |x| -> 0. Раньше это приводило
-    к mu_mae = 0.71 у EGNN Vector против 0.245 у скалярного EGNN.
+    сингулярности градиента d|x|/dx = x/|x| при |x| -> 0.
+
+    v32: если pred векторный (B,3) и есть target_stats, нормализуем pred.norm()
+    теми же mean/std, что и target. Без этого pred в физических единицах
+    (always >= 0), а target может быть отрицательным после нормализации
+    (например, (mu - mean) / std < 0 для молекул с mu < mean). EGNN Vector
+    принципиально не может предсказать отрицательное значение (это норма),
+    поэтому loss был искусственно завышен для таких молекул.
     """
     preds = _unpack_preds(preds, target)
 
@@ -309,6 +315,11 @@ def compute_loss(preds, batch, target: str, target_stats: dict | None = None) ->
         # Если pred векторный (B,3) — берём норму с clamp для стабильности градиента
         if pred_val.dim() == 2 and pred_val.shape[1] == 3:
             pred_val = pred_val.norm(dim=-1, keepdim=True).clamp(min=1e-4)
+            # v32: нормализуем pred теми же mean/std, что и target,
+            # чтобы pred и target были в одном масштабе
+            if target_stats is not None and key in target_stats:
+                m, s = target_stats[key]
+                pred_val = (pred_val - m) / s
 
         # Если target одномерный (B,) — добавляем размерность
         if target_val.dim() == 1:
