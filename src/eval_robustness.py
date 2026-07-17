@@ -41,6 +41,13 @@ def parse_args():
     p.add_argument("--target_stats", type=str, required=True,
                    help="Путь к target_stats_<model>_<target>.json (сохраняется train.py)")
     p.add_argument("--data_dir", type=str, default="data/alchemy")
+    p.add_argument("--max_train", type=int, default=None,
+                   help="Лимит обучающих молекул (не используется в robustness eval, "
+                        "но нужен для совместимости с target_stats)")
+    p.add_argument("--max_val", type=int, default=None,
+                   help="Лимит валидационных молекул")
+    p.add_argument("--max_test", type=int, default=None,
+                   help="Лимит тестовых молекул")
     p.add_argument("--output_csv", type=str, default=None,
                    help="Куда сохранить CSV с результатами. "
                         "По умолчанию: results/robustness/<model>_robustness.csv")
