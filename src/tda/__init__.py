@@ -3,6 +3,7 @@
 Удобный импорт:
     from src.tda import extract_tda_features, tda_feature_dim
     from src.tda import FiLMModulation, FiLMNodeModulation
+    from src.tda import extract_priors, recommend_architecture
 """
 
 from .features import (
@@ -14,6 +15,11 @@ from .features import (
     tda_feature_dim,
 )
 from .film import FiLMModulation, FiLMNodeModulation
+from .priors import (
+    extract_priors,
+    recommend_architecture,
+    tda_invariance_score,
+)
 
 __all__ = [
     "extract_tda_features",
@@ -24,4 +30,7 @@ __all__ = [
     "persistence_entropy",
     "FiLMModulation",
     "FiLMNodeModulation",
+    "extract_priors",
+    "recommend_architecture",
+    "tda_invariance_score",
 ]
