@@ -138,12 +138,41 @@ kaggle kernels output zahartedeev/<notebook-slug> -p ~/alchemy_output
 
 ### DataParallel device mismatch
 Раскомментируй `os.environ['CUDA_VISIBLE_DEVICES'] = '0'` в начале ноутбука.
+Или используй `--device cuda:0` (v32+) для выбора конкретной GPU.
 
 ### Не нужны все 4 модели
 Сократи список:
 ```python
 '--models', 'egnn,egnn_tda',  # только 2 модели
 ```
+
+### Долгое обучение (v32+)
+Если Early Stopping занимает слишком много эпох, попробуй:
+- `--es_mode or` — стоп, когда ХОТЯ БЫ одна метрика перестала улучшаться
+- `--es_mode loss_only` — только val_loss (классический ES)
+- `--patience 10` (вместо 15) — раньше останавливаться
+
+### TDA ухудшает метрики (v32+)
+Если `egnn_tda` работает хуже `egnn`:
+- `--tda_mode film` — FiLM-модуляция вместо concat (часто помогает)
+- TDA-фичи теперь нормализуются через BatchNorm1d (v32.7+), но если
+  данные очень noisy, film может быть стабильнее
+
+### Robustness evaluation (v32+)
+После обучения прогони:
+```bash
+python src/eval_robustness.py \
+    --model egnn --target all \
+    --checkpoint checkpoints/egnn_all_best.pt \
+    --target_stats results/experiments/batch_size_512/target_stats_egnn_all.json
+```
+
+### Воспроизводимость (v32+)
+train.py сохраняет рядом с CSV:
+- `args_<model>_<target>.json` — все гиперпараметры
+- `target_stats_<model>_<target>.json` — mean/std для денормализации
+
+Эти файлы нужны для `eval_robustness.py` и для воспроизведения эксперимента.
 
 ## Поддержание актуальной документации
 
