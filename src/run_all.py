@@ -127,20 +127,26 @@ def main():
             argv.extend(['--n_bins', '16'])
             argv.extend(['--tda_mode', args.tda_mode])
 
-        sys.argv = argv
-
-        # Импортируем и запускаем
-        import importlib
-        if 'train' in sys.modules:
-            importlib.reload(sys.modules['train'])
-
+        # v32: запускаем train.py в subprocess — чистый процесс, без утечек
+        # состояния между моделями (раньше использовался importlib.reload,
+        # который хрупкий: после первой модели оставались кэши, глобальные
+        # переменные, открытые файлы).
         t0 = time.time()
         try:
-            from train import main as train_main
-            train_main()
+            import subprocess
+            cmd = [sys.executable, str(Path(__file__).parent / "train.py")] + argv[1:]
+            print(f"  Command: {' '.join(cmd[:4])} ... (total {len(cmd)} args)")
+            result_proc = subprocess.run(cmd, check=True, capture_output=False)
             elapsed = time.time() - t0
-            results[model_name] = {"status": "OK", "time": elapsed}
-            print(f"\n[OK] {model_name} завершён за {elapsed:.1f}s")
+            results[model_name] = {"status": "OK", "time": elapsed,
+                                   "returncode": result_proc.returncode}
+            print(f"\n[OK] {model_name} завершён за {elapsed:.1f}s "
+                  f"(exit code {result_proc.returncode})")
+        except subprocess.CalledProcessError as e:
+            elapsed = time.time() - t0
+            results[model_name] = {"status": f"ERROR: subprocess exit {e.returncode}",
+                                   "time": elapsed}
+            print(f"\n[FAIL] {model_name} subprocess упал с exit code {e.returncode}")
         except Exception as e:
             elapsed = time.time() - t0
             results[model_name] = {"status": f"ERROR: {e}", "time": elapsed}
