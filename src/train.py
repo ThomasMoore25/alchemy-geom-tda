@@ -393,6 +393,21 @@ def main():
         target_stats[key] = (float(vals.mean()), float(vals.std() + 1e-8))
     logger.info(f"Target stats (mean, std): {target_stats}")
 
+    # v32: сохраняем args и target_stats для воспроизводимости
+    # Без них чекпойнт бесполезен: неизвестно, как денормализовать pred,
+    # неизвестны гиперпараметры обучения.
+    import json
+    Path(args.output_dir).mkdir(parents=True, exist_ok=True)
+    args_path = Path(args.output_dir) / f"args_{args.model}_{args.target}.json"
+    with open(args_path, "w") as f:
+        json.dump(vars(args), f, indent=2, default=str)
+    logger.info(f"→ args сохранены в {args_path}")
+
+    stats_path = Path(args.output_dir) / f"target_stats_{args.model}_{args.target}.json"
+    with open(stats_path, "w") as f:
+        json.dump({k: list(v) for k, v in target_stats.items()}, f, indent=2)
+    logger.info(f"→ target_stats сохранены в {stats_path}")
+
     from torch_geometric.loader import DataLoader as PyGDataLoader
     from torch_geometric.loader import DataListLoader
     from torch_geometric.data import Batch
