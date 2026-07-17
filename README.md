@@ -142,9 +142,31 @@ Canonical defaults (v32+, едины для `train.py`, `run_all.py`, `configs/d
 | `--lr_patience` | 5 | ReduceLROnPlateau patience |
 | `--hidden_channels` | 128 | Скрытая размерность |
 | `--num_layers` | 4 | Количество слоёв EGNN |
+| `--cutoff` | 5.0 | Радиус отсечения + нормализация координат |
+| `--k_neighbors` | 16 | Число соседей в kNN-графе |
+| `--m_dim` | 32 | Размерность m в EGNN_Sparse |
+| `--tda_mode` | concat | Способ интеграции TDA: `concat` или `film` |
+| `--es_mode` | and | Early stopping: `and`, `or`, `loss_only` |
+| `--noise` | 0.0 | Шум в координатах (для robustness test) |
+| `--noise_mode` | test_only | `test_only`/`train_val_test`/`train_only`/`eval_only` |
+| `--device` | auto | `auto`/`cpu`/`cuda`/`cuda:N` |
 | `--multi_gpu` | off | Включить PyG DataParallel |
 | `--num_workers` | 4 | DataLoader workers |
 | `--output_dir` | auto | `results/experiments/batch_size_{bs}` |
+
+## Robustness evaluation (v32+)
+
+После обучения модели можно оценить её устойчивость к шуму в координатах:
+
+```bash
+python src/eval_robustness.py \
+    --model egnn --target all \
+    --checkpoint checkpoints/egnn_all_best.pt \
+    --target_stats results/experiments/batch_size_512/target_stats_egnn_all.json \
+    --noise_sigma 0.0,0.05,0.10,0.15
+```
+
+Сохраняет CSV с метриками при разных sigma в `results/robustness/<model>_robustness.csv`.
 
 ## Логирование
 
@@ -170,37 +192,54 @@ Epoch  10/9999 | train_loss=0.8623 | val_loss=0.7821 | mu_mae=0.5537 | alpha_mae
 alchemy-geom-tda/
 ├── README.md                       # Этот файл
 ├── KAGGLE_RUN.md                   # Инструкция для Kaggle (Commit vs Interactive)
-├── requirements.txt                # Зависимости
+├── requirements.txt                # Runtime зависимости (v32+ pinned)
+├── requirements-dev.txt            # + pytest, ruff, black, mypy
+├── pyproject.toml                  # pytest/ruff/black/mypy config
+├── LICENSE                         # MIT (v32+)
+├── CITATION.cff                    # Для GitHub "Cite this repository"
 ├── .gitignore
+├── .gitattributes                  # LFS tracking (опционально)
 ├── data/
-│   └── download_alchemy.py         # Скачивание Alchemy v20191129
-├── src/
 │   ├── __init__.py
+│   └── download_alchemy.py         # Скачивание Alchemy v20191129 + SHA256 check
+├── src/
+│   ├── __init__.py                 # __version__, package metadata
 │   ├── data.py                     # Парсинг SDF + final_version.csv
-│   ├── dataset.py                  # PyG AlchemyDataset (InMemoryDataset)
-│   ├── utils.py                    # Сиды, логирование, AverageMeter
-│   ├── metrics.py                  # MAE для mu/alpha/gap
-│   ├── train.py                    # Главный скрипт обучения
-│   ├── run_all.py                  # Запуск нескольких моделей + summary CSV
-│   ├── plot.py                     # Графики обучения из CSV
-│   ├── early_stopping.py           # Multi-metric Early Stopping
+│   ├── dataset.py                  # PyG AlchemyDataset + кэш по хешу
+│   ├── utils.py                    # Сиды, логирование
+│   ├── metrics.py                  # MAE, RMSE, R² для mu/alpha/gap
+│   ├── train.py                    # Главный скрипт обучения + --config
+│   ├── run_all.py                  # subprocess запуск нескольких моделей
+│   ├── eval_robustness.py          # Прогон при разном шуме (v32+)
+│   ├── plot.py                     # Графики обучения + parity plot
+│   ├── early_stopping.py           # Multi-metric ES (--es_mode and/or/loss_only)
 │   ├── models/
-│   │   ├── __init__.py
+│   │   ├── __init__.py             # Экспорты 6 моделей + 6 build_* (v32+)
 │   │   ├── fcnn.py                 # FCNN baseline
 │   │   ├── schnet.py               # SchNet baseline
 │   │   ├── egnn.py                 # EGNN (update_coors=False)
-│   │   ├── egnn_tda.py             # EGNN + TDA (concat)
+│   │   ├── egnn_tda.py             # EGNN + TDA (concat или film)
 │   │   ├── egnn_vector.py          # EGNN с векторным mu
 │   │   ├── egnn_vector_tda.py      # EGNN Vector + TDA
-│   │   └── knn.py                  # Свой kNN graph (без pyg-lib)
+│   │   └── knn.py                  # kNN graph O(Σ n_i²) (v32+, был O(N²))
 │   └── tda/
-│       ├── __init__.py
-│       ├── features.py             # Vietoris-Rips, Betti curves (GUDHI)
+│       ├── __init__.py             # Экспорты TDA функций (v32+)
+│       ├── features.py             # Vietoris-Rips, Betti curves (векторизовано v32+)
 │       └── film.py                 # FiLM conditioning
 ├── configs/
-│   └── default.yaml
+│   └── default.yaml                # Canonical defaults (v32+ unified)
 ├── notebooks/
-│   └── 01_eda.py                   # EDA датасета
+│   └── 01_eda.py                   # EDA датасета (v32+ fixed)
+├── tests/                          # 89 pytest тестов (v32+)
+│   ├── conftest.py
+│   ├── test_knn.py
+│   ├── test_early_stopping.py
+│   ├── test_metrics.py
+│   ├── test_tda_features.py
+│   ├── test_data.py
+│   ├── test_models.py
+│   ├── test_train.py
+│   └── test_dataset_cache.py
 └── results/
     ├── table.md                    # Сводная таблица результатов
     ├── experiments/
