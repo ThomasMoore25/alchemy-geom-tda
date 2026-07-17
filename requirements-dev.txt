@@ -1,0 +1,19 @@
+# Development dependencies (v32+)
+# Install with: pip install -r requirements-dev.txt
+# (also installs runtime deps from requirements.txt)
+
+-r requirements.txt
+
+# Testing
+pytest>=8.0.0
+pytest-cov>=4.1.0
+
+# Linting & formatting
+ruff>=0.5.0
+black>=24.3.0
+
+# Type checking
+mypy>=1.10.0
+
+# Pre-commit hooks (optional)
+# pre-commit>=3.7.0
