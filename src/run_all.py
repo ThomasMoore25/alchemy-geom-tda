@@ -26,14 +26,16 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 def main():
     p = argparse.ArgumentParser(description="Run all models")
-    p.add_argument("--epochs", type=int, default=300)
+    p.add_argument("--epochs", type=int, default=9999,
+                   help="Максимум эпох (EarlyStopping остановит раньше)")
     p.add_argument("--max_train", type=int, default=None)
     p.add_argument("--max_val", type=int, default=None)
     p.add_argument("--max_test", type=int, default=None)
-    p.add_argument("--batch_size", type=int, default=1024)  # v27: было 256
+    p.add_argument("--batch_size", type=int, default=1024)
     p.add_argument("--hidden_channels", type=int, default=128)
     p.add_argument("--num_layers", type=int, default=4)
-    p.add_argument("--lr", type=float, default=5e-4)
+    p.add_argument("--lr", type=float, default=1e-3,
+                   help="Learning rate. 1e-3 — canonical default для EGNN.")
     p.add_argument("--patience", type=int, default=15)
     p.add_argument("--lr_patience", type=int, default=5)
     p.add_argument("--data_dir", type=str, default="data/alchemy",

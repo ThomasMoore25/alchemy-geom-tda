@@ -124,11 +124,14 @@ def parse_args():
     p.add_argument("--output_dir", type=str, default="results",
                    help="Куда складывать CSV-истории (по умолчанию results/)")
     p.add_argument("--batch_size", type=int, default=1024)
-    p.add_argument("--epochs", type=int, default=50)
-    p.add_argument("--lr", type=float, default=1e-4)
+    p.add_argument("--epochs", type=int, default=9999,
+                   help="Максимум эпох (EarlyStopping остановит раньше)")
+    p.add_argument("--lr", type=float, default=1e-3,
+                   help="Learning rate. 1e-3 — canonical default для EGNN.")
     p.add_argument("--weight_decay", type=float, default=1e-5)
     p.add_argument("--hidden_channels", type=int, default=128)
-    p.add_argument("--num_layers", type=int, default=6)
+    p.add_argument("--num_layers", type=int, default=4,
+                   help="Количество EGNN-слоёв")
     p.add_argument("--cutoff", type=float, default=5.0)
     p.add_argument("--noise", type=float, default=0.0,
                    help="Шум в координатах (для robustness test)")

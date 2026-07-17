@@ -126,11 +126,14 @@ plot_main()
 
 ## Ключевые параметры обучения
 
+Canonical defaults (v32+, едины для `train.py`, `run_all.py`, `configs/default.yaml`):
+
 | Параметр | По умолчанию | Описание |
 |----------|--------------|----------|
-| `--lr` | 5e-4 | Learning rate (рекомендуется 1e-3 для ускорения) |
+| `--config` | нет | Путь к YAML-конфигу (CLI > YAML > argparse default) |
+| `--lr` | 1e-3 | Learning rate |
 | `--batch_size` | 1024 | Размер батча |
-| `--epochs` | 300 | Максимум эпох |
+| `--epochs` | 9999 | Максимум эпох (EarlyStopping остановит раньше) |
 | `--patience` | 15 | Early Stopping patience |
 | `--lr_patience` | 5 | ReduceLROnPlateau patience |
 | `--hidden_channels` | 128 | Скрытая размерность |
