@@ -10,4 +10,4 @@
     from src.tda import extract_tda_features, FiLMModulation
 """
 
-__version__ = "32.21.0"
+__version__ = "32.32.0"

@@ -1,8 +1,8 @@
 # Alchemy GeomML + TDA
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python Tests](https://img.shields.io/badge/tests-83%20passing-green.svg)](tests/)
-[![Version](https://img.shields.io/badge/version-v32.12-blue.svg)](CHANGELOG)
+[![Python Tests](https://img.shields.io/badge/tests-89%20passing-green.svg)](tests/)
+[![Version](https://img.shields.io/badge/version-v32.32-blue.svg)](CHANGELOG)
 
 Предсказание квантово-механических свойств молекул датасета [Alchemy](https://arxiv.org/pdf/1906.09427) (202,579 молекул) с использованием геометрического глубокого обучения и топологического анализа данных.
 

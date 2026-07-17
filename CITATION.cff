@@ -16,7 +16,7 @@ keywords:
   - SchNet
   - persistence-homology
 license: MIT
-version: "v32.12"
+version: "v32.32"
 date-released: "2026-07-17"
 abstract: >-
   Prediction of quantum-mechanical properties (mu, alpha, gap) of
