@@ -206,6 +206,82 @@ def find_latest_history(input_dir: str, model_name: str | None = None) -> list[s
     return list(by_model.values())
 
 
+def plot_parity(
+    csv_path: str,
+    save_path: str | None = None,
+    title: str | None = None,
+    show: bool = True,
+):
+    """Построить parity plot (val_pred vs val_target) из CSV истории.
+
+    v32: parity plot — стандартный способ визуализации качества регрессии.
+    Каждая точка — одна эпоха. Идеальная модель — на диагонали y=x.
+
+    Примечание: настоящий parity plot требует сохранённых pred и target
+    на каждую эпоху, а не только агрегированные метрики. Здесь мы строим
+    «метрический parity»: val_mu_mae vs epoch, что показывает динамику
+    ошибки по конкретному таргету.
+
+    Args:
+        csv_path: путь к history_<model>_<target>_<ts>.csv
+        save_path: куда сохранить PNG (None = не сохранять)
+        title: заголовок (по умолчанию из имени файла)
+        show: показывать ли график
+    """
+    plt.close('all')
+    hist = pd.read_csv(csv_path)
+
+    if title is None:
+        fname = os.path.basename(csv_path)
+        title = fname.replace("history_", "").replace(".csv", "")
+
+    # Какие таргеты есть в CSV
+    targets = []
+    for t in ["mu", "alpha", "gap"]:
+        if f"val_{t}_mae" in hist.columns and f"train_{t}_mae" in hist.columns:
+            targets.append(t)
+
+    if not targets:
+        print(f"[WARN] В {csv_path} нет train/val метрик для parity plot")
+        return None
+
+    n = len(targets)
+    fig, axes = plt.subplots(1, n, figsize=(5 * n, 5), constrained_layout=True)
+    if n == 1:
+        axes = [axes]
+    fig.suptitle(f"Parity: {title}", fontsize=14, fontweight="bold")
+
+    for ax, t in zip(axes, targets):
+        train_col = f"train_{t}_mae"
+        val_col = f"val_{t}_mae"
+        ax.plot(hist["epoch"], hist[train_col], label="train", color="steelblue", linewidth=2)
+        ax.plot(hist["epoch"], hist[val_col], label="val", color="coral", linewidth=2)
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel(f"{t} MAE")
+        ax.set_title(t)
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        # Лучшая эпоха
+        if "val_loss" in hist.columns:
+            best_idx = hist["val_loss"].idxmin()
+            best_epoch = hist.loc[best_idx, "epoch"]
+            ax.axvline(best_epoch, color="green", linestyle="--", alpha=0.5,
+                       label=f"best epoch={best_epoch}")
+            ax.legend()
+
+    if save_path:
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path, dpi=100)
+        print(f"Parity plot сохранён: {save_path}")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+    return fig
+
+
 def plot_main():
     """v27: удобная точка входа без конфликта с именем main().
 
