@@ -34,6 +34,9 @@ def main():
     p.add_argument("--batch_size", type=int, default=1024)
     p.add_argument("--hidden_channels", type=int, default=128)
     p.add_argument("--num_layers", type=int, default=4)
+    p.add_argument("--cutoff", type=float, default=5.0)
+    p.add_argument("--k_neighbors", type=int, default=16)
+    p.add_argument("--m_dim", type=int, default=32)
     p.add_argument("--lr", type=float, default=1e-3,
                    help="Learning rate. 1e-3 — canonical default для EGNN.")
     p.add_argument("--patience", type=int, default=15)
@@ -85,6 +88,9 @@ def main():
             '--batch_size', str(args.batch_size),
             '--hidden_channels', str(args.hidden_channels),
             '--num_layers', str(args.num_layers),
+            '--cutoff', str(args.cutoff),
+            '--k_neighbors', str(args.k_neighbors),
+            '--m_dim', str(args.m_dim),
             '--device', args.device,
             '--lr', str(args.lr),
             '--seed', str(args.seed),

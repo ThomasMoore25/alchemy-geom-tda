@@ -132,7 +132,12 @@ def parse_args():
     p.add_argument("--hidden_channels", type=int, default=128)
     p.add_argument("--num_layers", type=int, default=4,
                    help="Количество EGNN-слоёв")
-    p.add_argument("--cutoff", type=float, default=5.0)
+    p.add_argument("--cutoff", type=float, default=5.0,
+                   help="Радиус отсечения и нормализация координат (pos / cutoff)")
+    p.add_argument("--k_neighbors", type=int, default=16,
+                   help="Число соседей в kNN-графе для EGNN-моделей")
+    p.add_argument("--m_dim", type=int, default=32,
+                   help="Размерность m в EGNN_Sparse")
     p.add_argument("--noise", type=float, default=0.0,
                    help="Шум в координатах (для robustness test)")
     p.add_argument("--seed", type=int, default=42)
@@ -193,6 +198,9 @@ def build_model(args, tda_dim: int = 0):
         return build_egnn(
             hidden_channels=args.hidden_channels,
             num_layers=args.num_layers,
+            cutoff=args.cutoff,
+            k_neighbors=args.k_neighbors,
+            m_dim=args.m_dim,
             predict_mu=pred_mu,
             predict_alpha=pred_alpha,
             predict_gap=pred_gap,
@@ -203,6 +211,9 @@ def build_model(args, tda_dim: int = 0):
         return build_egnn_tda(
             hidden_channels=args.hidden_channels,
             num_layers=args.num_layers,
+            cutoff=args.cutoff,
+            k_neighbors=args.k_neighbors,
+            m_dim=args.m_dim,
             tda_dim=tda_dim or tda_feature_dim(args.n_bins),
             predict_mu=pred_mu,
             predict_alpha=pred_alpha,
@@ -215,6 +226,8 @@ def build_model(args, tda_dim: int = 0):
             hidden_channels=args.hidden_channels,
             num_layers=args.num_layers,
             cutoff=args.cutoff,
+            k_neighbors=args.k_neighbors,
+            m_dim=args.m_dim,
             predict_alpha=pred_alpha,
             predict_gap=pred_gap,
         )
@@ -225,6 +238,8 @@ def build_model(args, tda_dim: int = 0):
             hidden_channels=args.hidden_channels,
             num_layers=args.num_layers,
             cutoff=args.cutoff,
+            k_neighbors=args.k_neighbors,
+            m_dim=args.m_dim,
             tda_dim=tda_dim or tda_feature_dim(args.n_bins),
             predict_alpha=pred_alpha,
             predict_gap=pred_gap,

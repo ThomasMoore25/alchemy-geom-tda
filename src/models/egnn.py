@@ -35,6 +35,8 @@ class EGNNModel(nn.Module):
         hidden_channels: int = 128,
         num_layers: int = 4,
         cutoff: float = 5.0,
+        k_neighbors: int = 16,
+        m_dim: int = 32,
         predict_mu: bool = True,
         predict_alpha: bool = True,
         predict_gap: bool = True,
@@ -46,6 +48,8 @@ class EGNNModel(nn.Module):
 
         self.hidden_channels = hidden_channels
         self.cutoff = cutoff
+        self.k_neighbors = k_neighbors
+        self.m_dim = m_dim
         self.predict_mu = predict_mu
         self.predict_alpha = predict_alpha
         self.predict_gap = predict_gap
@@ -61,7 +65,7 @@ class EGNNModel(nn.Module):
                 update_feats=True,
                 norm_feats=False,
                 norm_coors=False,
-                m_dim=32,
+                m_dim=m_dim,
             )
             for _ in range(num_layers)
         ])
@@ -104,9 +108,9 @@ class EGNNModel(nn.Module):
     def forward(self, batch) -> dict[str, Tensor]:
         atom_types = batch.x[:, :NUM_ATOM_TYPES].argmax(dim=-1).long()
         feats = self.atom_embed(atom_types)
-        coors = batch.pos / 5.0  # нормализация координат
+        coors = batch.pos / self.cutoff  # нормализация координат
 
-        edge_index = knn_graph(coors, k=16, batch=batch.batch, loop=False)
+        edge_index = knn_graph(coors, k=self.k_neighbors, batch=batch.batch, loop=False)
         row, col = edge_index
         edge_dist = (coors[row] - coors[col]).norm(dim=-1, keepdim=True)
 
