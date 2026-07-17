@@ -151,7 +151,9 @@ def parse_args():
     p.add_argument("--eval_only", action="store_true",
                    help="Только оценка (нужен --checkpoint)")
     p.add_argument("--checkpoint", type=str, default=None)
-    p.add_argument("--device", type=str, default="auto")
+    p.add_argument("--device", type=str, default="auto",
+                   help="Device: 'auto' (default, использует cuda если доступна), "
+                        "'cpu', 'cuda', или 'cuda:N' для конкретной GPU (например, 'cuda:0')")
     p.add_argument("--max_train", type=int, default=None,
                    help="Лимит числа обучающих молекул (для отладки)")
     p.add_argument("--max_val", type=int, default=None,
@@ -363,6 +365,15 @@ def main():
     else:
         device = torch.device(args.device)
     n_gpus = torch.cuda.device_count() if device.type == "cuda" else 0
+    # v32: валидация cuda:N — если указан конкретный индекс, проверить что он существует
+    if device.type == "cuda" and device.index is not None:
+        if device.index >= n_gpus:
+            raise ValueError(
+                f"Запрошена cuda:{device.index}, но доступно только {n_gpus} GPU "
+                f"(индексы 0..{n_gpus-1}). Доступные устройства: "
+                f"{[torch.cuda.get_device_name(i) for i in range(n_gpus)]}"
+            )
+        print(f"Selected GPU {device.index}: {torch.cuda.get_device_name(device.index)}")
     print(f"Device: {device}" + (f"  (GPUs: {n_gpus})" if n_gpus > 0 else ""))
 
     logger = setup_logger("train", log_file=f"logs/{args.model}_{args.target}.log")
