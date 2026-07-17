@@ -1,0 +1,35 @@
+# Docker ignore (v32+) — excludes from docker build context
+
+.git/
+.github/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+
+# Data (must be mounted at runtime, not baked into image)
+data/alchemy/
+data/raw/
+data/processed/
+
+# Results & checkpoints (mounted at runtime)
+results/
+checkpoints/
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Large files (use Git LFS if needed)
+*.pt
+*.pth
+*.ckpt
+*.zip

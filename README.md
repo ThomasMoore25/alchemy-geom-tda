@@ -168,6 +168,25 @@ python src/eval_robustness.py \
 
 Сохраняет CSV с метриками при разных sigma в `results/robustness/<model>_robustness.csv`.
 
+## Docker (v32+)
+
+Для воспроизводимости окружения:
+
+```bash
+# Сборка
+docker build -t alchemy-geom-tda .
+
+# Запуск (CPU only)
+docker run -v $(pwd)/data:/app/data -v $(pwd)/results:/app/results \
+    alchemy-geom-tda python src/train.py --model egnn --device cpu --max_train 1000
+
+# Запуск (с GPU — требует nvidia-docker)
+docker run --gpus all -v $(pwd)/data:/app/data -v $(pwd)/results:/app/results \
+    alchemy-geom-tda python src/train.py --model egnn
+```
+
+Data и results монтируются как volumes — данные не дублируются в image.
+
 ## Логирование
 
 Каждая эпоха логируется в формате:

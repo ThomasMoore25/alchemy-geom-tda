@@ -13,10 +13,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import numpy as np
-import matplotlib.pyplot as plt
-
 import matplotlib.font_manager as fm
+import matplotlib.pyplot as plt
+import numpy as np
+
 try:
     fm.fontManager.addfont('/usr/share/fonts/truetype/chinese/NotoSansSC-Regular.ttf')
 except Exception:
@@ -30,11 +30,10 @@ plt.rcParams['axes.unicode_minus'] = False
 
 from src.data import (
     ATOM_TYPES,
-    ATOMIC_MASSES,
     find_sdf_files,
-    parse_sdf,
-    mol_to_arrays,
     load_properties_csv,
+    mol_to_arrays,
+    parse_sdf,
 )
 
 plt.rcParams.update({
@@ -202,8 +201,8 @@ def demonstrate_symmetry(molecules, n_examples: int = 3):
               f"{len(mol['atoms'])} атомов")
         print(f"  |v| исходный:      {v_norm:.6f}")
         print(f"  |v| повёрнутый:    {v_rotated_norm:.6f}")
-        print(f"  Гистограмма атомов: {dict(zip(ATOM_TYPES, hist_before.astype(int).tolist()))}")
-        print(f"  (скалярные свойства и нормы векторов сохраняются при повороте)")
+        print(f"  Гистограмма атомов: {dict(zip(ATOM_TYPES, hist_before.astype(int).tolist(), strict=False))}")
+        print("  (скалярные свойства и нормы векторов сохраняются при повороте)")
 
 
 if __name__ == "__main__":
