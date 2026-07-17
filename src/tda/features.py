@@ -60,17 +60,46 @@ def betti_curve(persistence_pairs: list[tuple[float, float]], n_bins: int = 32, 
     Для каждого уровня r ∈ [0, max_r] считаем сколько особенностей (birth ≤ r < death).
     Дискретизуем по n_bins точкам.
 
+    v32: векторизованная реализация через np.searchsorted.
+    Было: O(n_bins × N_pairs) — двойной цикл.
+    Стало: O(n_bins × log N_pairs) — два searchsorted.
+
     Returns:
         (n_bins,) массив
     """
     bins = np.linspace(0, max_r, n_bins)
-    curve = np.zeros(n_bins, dtype=np.float32)
-    for birth, death in persistence_pairs:
-        if death == float("inf"):
-            death = max_r + 1
-        for i, r in enumerate(bins):
-            if birth <= r < death:
-                curve[i] += 1
+    if not persistence_pairs:
+        return np.zeros(n_bins, dtype=np.float32)
+
+    # Разделяем birth и death, заменяем inf на max_r + 1.
+    # Также фильтруем невалидные пары (death <= birth) — такие не должны
+    # существовать в правильной persistence diagram, но защищаемся.
+    births_list = []
+    deaths_list = []
+    for b, d in persistence_pairs:
+        d_val = d if d != float("inf") else max_r + 1
+        if d_val > b:  # только валидные пары
+            births_list.append(b)
+            deaths_list.append(d_val)
+
+    if not births_list:
+        return np.zeros(n_bins, dtype=np.float32)
+
+    births = np.array(births_list, dtype=np.float64)
+    deaths = np.array(deaths_list, dtype=np.float64)
+
+    # Для каждого bins[i] считаем число особенностей с birth <= bins[i] < death.
+    # Это: (число features с birth <= bins[i]) - (число features с death <= bins[i])
+    # searchsorted на отсортированном массиве даёт count за O(log N).
+    births_sorted = np.sort(births)
+    deaths_sorted = np.sort(deaths)
+
+    n_births_le = np.searchsorted(births_sorted, bins, side='right')
+    n_deaths_le = np.searchsorted(deaths_sorted, bins, side='right')
+
+    curve = (n_births_le - n_deaths_le).astype(np.float32)
+    # На всякий случай — clamp отрицательных значений (если есть edge cases)
+    np.maximum(curve, 0, out=curve)
     return curve
 
 
