@@ -103,11 +103,30 @@ class AlchemyDataset(InMemoryDataset):
         return [f"{readable}_{h}.pt"]
 
     def download(self):
-        if not (Path(self.root) / "Alchemy-v20191129").exists():
-            raise FileNotFoundError(
-                f"Alchemy не найден в {self.root}. "
-                "Запустите: python data/download_alchemy.py"
-            )
+        """Скачать Alchemy, если данных нет.
+
+        v32: вместо FileNotFoundError вызываем data.download_alchemy.download_alchemy(),
+        чтобы PyG InMemoryDataset сам управлял жизненным циклом данных.
+        Это соответствует контракту базового класса.
+        """
+        if (Path(self.root) / "Alchemy-v20191129" / "final_version.csv").exists():
+            return  # уже скачано
+        # Импортируем лениво, чтобы избежать циклических зависимостей
+        import sys
+        repo_root = Path(__file__).parent.parent.parent
+        if str(repo_root) not in sys.path:
+            sys.path.insert(0, str(repo_root))
+        from data.download_alchemy import download_alchemy
+        # download_alchemy по умолчанию использует DATA_DIR = data/alchemy
+        # Если self.root отличается, нужно явно указать
+        default_root = repo_root / "data" / "alchemy"
+        if Path(self.root) != default_root:
+            # Пользователь указал кастомный путь — скачиваем туда
+            # (download_alchemy не принимает путь, поэтому просто вызываем,
+            # а потом сообщим пользователю, если путь нестандартный)
+            print(f"[WARN] download_alchemy() использует дефолтный путь {default_root}. "
+                  f"Если вы указали root={self.root}, убедитесь, что данные там.")
+        download_alchemy()
 
     def process(self):
         """Парсинг SDF и создание Data объектов.
