@@ -72,6 +72,9 @@ pip install -r requirements.txt
 pip install torch torch-geometric gudhi rdkit egnn-pytorch pandas matplotlib numpy scipy
 ```
 
+> **Краткая инструкция по запуску:** см. [`QUICKSTART.md`](QUICKSTART.md) — все команды по шагам.
+> **Интерактивный туториал:** см. [`notebooks/alchemy_geom_tda_quickstart.ipynb`](notebooks/alchemy_geom_tda_quickstart.ipynb) — Jupyter-ноутбук с пошаговым запуском.
+
 ## Использование
 
 ### 1. Загрузка датасета Alchemy
