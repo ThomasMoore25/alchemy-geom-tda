@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+title: "alchemy-geom-tda: E(3)-equivariant geometric ML with TDA for Alchemy dataset"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - alias: ThomasMoore25
+repository-code: "https://github.com/ThomasMoore25/alchemy-geom-tda"
+url: "https://github.com/ThomasMoore25/alchemy-geom-tda"
+keywords:
+  - equivariant-neural-networks
+  - geometric-deep-learning
+  - topological-data-analysis
+  - quantum-chemistry
+  - alchemy-dataset
+  - EGNN
+  - SchNet
+  - persistence-homology
+license: MIT
+version: "v32.12"
+date-released: "2026-07-17"
+abstract: >-
+  Prediction of quantum-mechanical properties (mu, alpha, gap) of
+  molecules from the Alchemy dataset (202,579 molecules) using
+  E(3)-equivariant geometric deep learning (EGNN, SchNet) and
+  topological data analysis (Vietoris-Rips persistence, Betti curves).
+  Six model variants are implemented: FCNN baseline, SchNet, EGNN,
+  EGNN+TDA (concat or FiLM), EGNN Vector (equivariant mu output),
+  EGNN Vector+TDA.
