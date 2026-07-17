@@ -268,7 +268,12 @@ def _get_target(key: str, batch, target_stats: dict | None = None):
 
 
 def compute_loss(preds, batch, target: str, target_stats: dict | None = None) -> torch.Tensor:
-    """Вычислить loss. Для векторного mu (B,3) — сравниваем норму со скалярным таргетом."""
+    """Вычислить loss. Для векторного mu (B,3) — сравниваем норму со скалярным таргетом.
+
+    v32: добавлен clamp(min=eps) при взятии нормы вектора, чтобы избежать
+    сингулярности градиента d|x|/dx = x/|x| при |x| -> 0. Раньше это приводило
+    к mu_mae = 0.71 у EGNN Vector против 0.245 у скалярного EGNN.
+    """
     preds = _unpack_preds(preds, target)
 
     loss = 0.0
@@ -280,9 +285,9 @@ def compute_loss(preds, batch, target: str, target_stats: dict | None = None) ->
         pred_val = preds[key]
         target_val = _get_target(key, batch, target_stats)
 
-        # Если pred векторный (B,3) — берём норму
+        # Если pred векторный (B,3) — берём норму с clamp для стабильности градиента
         if pred_val.dim() == 2 and pred_val.shape[1] == 3:
-            pred_val = pred_val.norm(dim=-1, keepdim=True)
+            pred_val = pred_val.norm(dim=-1, keepdim=True).clamp(min=1e-4)
 
         # Если target одномерный (B,) — добавляем размерность
         if target_val.dim() == 1:
