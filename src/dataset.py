@@ -225,14 +225,19 @@ class AlchemyDataset(InMemoryDataset):
                     n_bins=self.n_bins,
                     max_radius=self.max_radius,
                 )
-                with Pool(self.n_jobs) as pool:
-                    # chunksize для уменьшения overhead
-                    chunksize = max(1, n // (self.n_jobs * 10))
-                    tda_features_list = pool.map(
-                        worker, coords_list, chunksize=chunksize
-                    )
-            else:
-                # Последовательный режим
+                try:
+                    with Pool(self.n_jobs) as pool:
+                        chunksize = max(1, n // (self.n_jobs * 10))
+                        tda_features_list = pool.map(
+                            worker, coords_list, chunksize=chunksize
+                        )
+                except Exception as e:
+                    print(f"  [WARN] multiprocessing.Pool failed: {e}")
+                    print("  [WARN] Falling back to sequential TDA...")
+                    tda_features_list = None
+
+            if tda_features_list is None and self.tda_features:
+                # Последовательный режим (fallback или n_jobs=1)
                 tda_features_list = []
                 for i, c in enumerate(coords_list):
                     if i % 5000 == 0:

@@ -136,36 +136,31 @@ def main():
             argv.append('--predict_tensor_alpha')
 
         # v32: запускаем train.py в subprocess — чистый процесс, без утечек
-        # состояния между моделями (раньше использовался importlib.reload,
-        # который хрупкий: после первой модели оставались кэши, глобальные
-        # переменные, открытые файлы).
-        # v33.11: capture_output=True + печать stdout/stderr построчно,
-        # чтобы избежать дублирования логов в Kaggle papermill.
+        # состояния между моделями.
+        # v33.12: используем Popen с построчным чтением stdout/stderr.
+        # Это надёжнее, чем capture_output=True (который собирает весь вывод
+        # в память и может потерять логи при падении).
         t0 = time.time()
         try:
             import subprocess
-            cmd = [sys.executable, str(Path(__file__).parent / "train.py")] + argv[1:]
+            cmd = [sys.executable, "-u", str(Path(__file__).parent / "train.py")] + argv[1:]
             print(f"  Command: {' '.join(cmd[:4])} ... (total {len(cmd)} args)")
-            result_proc = subprocess.run(cmd, check=True, capture_output=True, text=True)
-            # Печатаем stdout/stderr дочернего процесса один раз
-            if result_proc.stdout:
-                print(result_proc.stdout, end="")
-            if result_proc.stderr:
-                print(result_proc.stderr, end="", file=sys.stderr)
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                    text=True, bufsize=1)
+            # Построчное чтение и печать — без дублирования
+            for line in proc.stdout:
+                print(line, end="")
+            proc.wait()
             elapsed = time.time() - t0
-            results[model_name] = {"status": "OK", "time": elapsed,
-                                   "returncode": result_proc.returncode}
-            print(f"\n[OK] {model_name} завершён за {elapsed:.1f}s "
-                  f"(exit code {result_proc.returncode})")
-        except subprocess.CalledProcessError as e:
-            elapsed = time.time() - t0
-            results[model_name] = {"status": f"ERROR: subprocess exit {e.returncode}",
-                                   "time": elapsed}
-            print(f"\n[FAIL] {model_name} subprocess упал с exit code {e.returncode}")
-            if e.stdout:
-                print(e.stdout, end="")
-            if e.stderr:
-                print(e.stderr, end="", file=sys.stderr)
+            if proc.returncode == 0:
+                results[model_name] = {"status": "OK", "time": elapsed,
+                                       "returncode": proc.returncode}
+                print(f"\n[OK] {model_name} завершён за {elapsed:.1f}s "
+                      f"(exit code {proc.returncode})")
+            else:
+                results[model_name] = {"status": f"ERROR: subprocess exit {proc.returncode}",
+                                       "time": elapsed}
+                print(f"\n[FAIL] {model_name} subprocess упал с exit code {proc.returncode}")
         except Exception as e:
             elapsed = time.time() - t0
             results[model_name] = {"status": f"ERROR: {e}", "time": elapsed}
