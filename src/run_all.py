@@ -40,6 +40,9 @@ def main():
     p.add_argument("--tda_mode", type=str, default="concat",
                    choices=["concat", "film"],
                    help="Способ интеграции TDA: concat (по умолчанию) или film")
+    p.add_argument("--predict_tensor_alpha", action="store_true",
+                   help="Часть B: для egnn_tensor — предсказывать тензор α. "
+                        "Передаётся только в train.py для egnn_tensor (для остальных моделей игнорируется).")
     p.add_argument("--lr", type=float, default=1e-3,
                    help="Learning rate. 1e-3 — canonical default для EGNN.")
     p.add_argument("--patience", type=int, default=15)

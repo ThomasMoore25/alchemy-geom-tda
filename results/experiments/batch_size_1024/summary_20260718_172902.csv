@@ -1,0 +1,2 @@
+model,status,train_time_s,n_epochs,best_epoch,best_val_loss,test_mu_mae,test_alpha_mae,test_gap_mae,test_loss,csv_file
+egnn,ERROR: subprocess exit 1,10.211272478103638,0,,,,,,,

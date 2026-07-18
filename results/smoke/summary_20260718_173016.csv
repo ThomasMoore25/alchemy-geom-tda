@@ -1,0 +1,2 @@
+model,status,train_time_s,n_epochs,best_epoch,best_val_loss,test_mu_mae,test_alpha_mae,test_gap_mae,test_loss,csv_file
+egnn,OK,7.0,1,1,1.9379,0.8887,36.5972,0.0032,3.4693,history_egnn_all_20260718_173014.csv
