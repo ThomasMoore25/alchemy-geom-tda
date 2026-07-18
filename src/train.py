@@ -435,18 +435,23 @@ def main():
     from dataset import AlchemyDataset
 
     use_tda = args.model in ("egnn_tda", "egnn_vector_tda")
+    # v33.11: передаём num_workers в dataset для multiprocessing TDA
+    # (n_jobs=1 по умолчанию = TDA на CPU последовательно, очень медленно для 200k молекул)
     train_ds = AlchemyDataset(root=args.data_dir, split="train",
                               max_samples=args.max_train,
                               tda_features=use_tda, n_bins=args.n_bins,
-                              max_radius=args.max_radius, seed=args.seed)
+                              max_radius=args.max_radius, seed=args.seed,
+                              n_jobs=args.num_workers)
     val_ds = AlchemyDataset(root=args.data_dir, split="val",
                             max_samples=args.max_val,
                             tda_features=use_tda, n_bins=args.n_bins,
-                            max_radius=args.max_radius, seed=args.seed)
+                            max_radius=args.max_radius, seed=args.seed,
+                            n_jobs=args.num_workers)
     test_ds = AlchemyDataset(root=args.data_dir, split="test",
                              max_samples=args.max_test,
                              tda_features=use_tda, n_bins=args.n_bins,
-                             max_radius=args.max_radius, seed=args.seed)
+                             max_radius=args.max_radius, seed=args.seed,
+                             n_jobs=args.num_workers)
     logger.info(f"Train/Val/Test: {len(train_ds)}/{len(val_ds)}/{len(test_ds)}")
 
     # === Нормализация таргетов (по train выборке) ===

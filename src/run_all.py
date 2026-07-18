@@ -139,12 +139,19 @@ def main():
         # состояния между моделями (раньше использовался importlib.reload,
         # который хрупкий: после первой модели оставались кэши, глобальные
         # переменные, открытые файлы).
+        # v33.11: capture_output=True + печать stdout/stderr построчно,
+        # чтобы избежать дублирования логов в Kaggle papermill.
         t0 = time.time()
         try:
             import subprocess
             cmd = [sys.executable, str(Path(__file__).parent / "train.py")] + argv[1:]
             print(f"  Command: {' '.join(cmd[:4])} ... (total {len(cmd)} args)")
-            result_proc = subprocess.run(cmd, check=True, capture_output=False)
+            result_proc = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            # Печатаем stdout/stderr дочернего процесса один раз
+            if result_proc.stdout:
+                print(result_proc.stdout, end="")
+            if result_proc.stderr:
+                print(result_proc.stderr, end="", file=sys.stderr)
             elapsed = time.time() - t0
             results[model_name] = {"status": "OK", "time": elapsed,
                                    "returncode": result_proc.returncode}
@@ -155,6 +162,10 @@ def main():
             results[model_name] = {"status": f"ERROR: subprocess exit {e.returncode}",
                                    "time": elapsed}
             print(f"\n[FAIL] {model_name} subprocess упал с exit code {e.returncode}")
+            if e.stdout:
+                print(e.stdout, end="")
+            if e.stderr:
+                print(e.stderr, end="", file=sys.stderr)
         except Exception as e:
             elapsed = time.time() - t0
             results[model_name] = {"status": f"ERROR: {e}", "time": elapsed}
