@@ -136,7 +136,7 @@ class EGNNTensorModel(nn.Module):
         x = torch.cat([coors, feats], dim=-1)
         for layer in self.egnn_layers:
             x = layer(x, edge_index, edge_attr=edge_dist, batch=batch.batch)
-        updated_coors = x[:, :3]  # (N, 3)
+        x[:, :3]  # (N, 3) — в масштабе pos/cutoff
         h = x[:, 3:]  # (N, hidden)
 
         # Частичные заряды
@@ -145,10 +145,17 @@ class EGNNTensorModel(nn.Module):
         # Массы для COM
         mass = batch.x[:, -1:]  # (N, 1)
 
+        # v33.8: используем ОРИГИНАЛЬНЫЕ координаты (batch.pos) для физических
+        # расчётов μ и α, а не updated_coors (которые в масштабе pos/cutoff).
+        # Раньше: updated_coors = pos/cutoff → μ занижен в cutoff раз,
+        #         α занижена в cutoff^2 раз (25x при cutoff=5).
+        # Теперь: batch.pos → μ и α в правильных физических единицах.
+        physical_coors = batch.pos  # оригинальные координаты в Å
+
         # Вектор дипольного момента μ ∈ R³ (эквивариантный)
         mu = compute_dipole_vector(
             atom_charges=atom_charges,
-            atom_positions=updated_coors,
+            atom_positions=physical_coors,
             batch_idx=batch.batch,
             atom_masses=mass,
         )  # (B, 3)
@@ -159,7 +166,7 @@ class EGNNTensorModel(nn.Module):
         if self.predict_alpha_tensor:
             alpha_tensor = compute_polarizability_tensor(
                 atom_charges=atom_charges,
-                atom_positions=updated_coors,
+                atom_positions=physical_coors,
                 batch_idx=batch.batch,
                 atom_masses=mass,
             )  # (B, 3, 3)

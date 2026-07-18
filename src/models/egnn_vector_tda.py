@@ -129,19 +129,20 @@ class EGNNVectorTDA(nn.Module):
         x = torch.cat([coors, feats], dim=-1)
         for layer in self.egnn_layers:
             x = layer(x, edge_index, edge_attr=edge_dist, batch=batch.batch)
-        updated_coors = x[:, :3]
+        x[:, :3]
         h = x[:, 3:]
 
         # === Эквивариантный диполь ===
-        # Замечание: см. egnn_vector.py — повторный расчёт COM нужен
-        # из-за update_coors=True в EGNN-слоях.
+        # v33.8: используем ОРИГИНАЛЬНЫЕ координаты (batch.pos) для μ,
+        # не updated_coors (которые в масштабе pos/cutoff).
         q = self.charge_head(h)
         mass = batch.x[:, -1:]
-        weighted_coors = updated_coors * mass
+        physical_coors = batch.pos
+        weighted_coors = physical_coors * mass
         sum_weighted = global_add_pool(weighted_coors, batch.batch)
         sum_mass = global_add_pool(mass, batch.batch)
         com = sum_weighted / (sum_mass + 1e-8)
-        shifted_coors = updated_coors - com[batch.batch]
+        shifted_coors = physical_coors - com[batch.batch]
         dipole_per_atom = q * shifted_coors
         mu = global_add_pool(dipole_per_atom, batch.batch)  # (B, 3)
 

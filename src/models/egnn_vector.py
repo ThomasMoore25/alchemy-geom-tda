@@ -135,29 +135,28 @@ class EGNNVectorModel(nn.Module):
         for layer in self.egnn_layers:
             x = layer(x, edge_index, edge_attr=edge_dist, batch=batch.batch)
         # x: (N, 3 + hidden) — обновлённые координаты + признаки
-        updated_coors = x[:, :3]  # (N, 3) — обновлённые позиции
+        x[:, :3]  # (N, 3) — обновлённые позиции
         h = x[:, 3:]  # (N, hidden) — признаки
 
         # === Эквивариантный диполь ===
         # q_i = charge_head(h_i) — заряд атома
         q = self.charge_head(h)  # (N, 1)
 
-        # COM для каждой молекулы (центр масс обновлённых координат).
-        # Замечание: исходные координаты уже центрированы в COM в src.data.mol_to_arrays,
-        # но EGNN-слои с update_coors=True сдвигают координаты, поэтому COM обновлённого
-        # представления может быть ненулевым. Этот повторный расчёт COM — НЕ избыточный,
-        # он гарантирует трансляционную инвариантность μ даже после update_coors.
-        # Используем массу атома как вес.
+        # v33.8: используем ОРИГИНАЛЬНЫЕ координаты (batch.pos) для физических
+        # расчётов μ, а не updated_coors (которые в масштабе pos/cutoff).
+        # Раньше: updated_coors = pos/cutoff → μ занижен в cutoff раз.
+        # Теперь: batch.pos → μ в правильных физических единицах (Дебай).
+        physical_coors = batch.pos  # оригинальные координаты в Å
+
         mass = batch.x[:, -1:]  # (N, 1)
         # COM = Σ(mass_i * coors_i) / Σ(mass_i)
-        weighted_coors = updated_coors * mass  # (N, 3)
+        weighted_coors = physical_coors * mass  # (N, 3)
         sum_weighted = global_add_pool(weighted_coors, batch.batch)  # (B, 3)
         sum_mass = global_add_pool(mass, batch.batch)  # (B, 1)
         com = sum_weighted / (sum_mass + 1e-8)  # (B, 3)
 
-        # Сдвинутые координаты: r_i - COM (для каждого атома своей молекулы)
-        # com[batch.batch]: (N, 3) — COM для каждого атома
-        shifted_coors = updated_coors - com[batch.batch]  # (N, 3)
+        # Сдвинутые координаты: r_i - COM
+        shifted_coors = physical_coors - com[batch.batch]  # (N, 3)
 
         # Диполь: μ = Σ_i q_i * (r_i - COM)
         # q_i * shifted_coors_i: (N, 1) * (N, 3) → (N, 3)
