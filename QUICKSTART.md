@@ -17,26 +17,51 @@ python data/download_alchemy.py
 
 ## Быстрый запуск
 
-### 1. Обучить одну модель (5 минут на GPU)
+### 1. Обучить одну модель (1-2 часа на GPU)
+
+Параметры оптимизированы для быстрой сходимости:
+- `--epochs 9999` (EarlyStopping остановит раньше)
+- `--patience 10` (быстрее стопаем)
+- `--es_mode or` (стоп при первой плохой метрике)
+- `--batch_size 1024` (ускоряет обучение)
 
 ```bash
-python src/train.py --model egnn --target all --epochs 50 --device cuda
+python src/train.py --model egnn --target all \
+    --epochs 9999 --batch_size 1024 \
+    --patience 10 --es_mode or \
+    --device cuda --num_workers 4
 ```
 
-### 2. Обучить все 6 моделей сразу
+### 2. Обучить все 7 моделей сразу (3-6 часов на GPU)
 
 ```bash
-python src/run_all.py --models all --epochs 100 --device cuda --multi_gpu
+python src/run_all.py --models all \
+    --epochs 9999 --batch_size 1024 \
+    --patience 10 --es_mode or \
+    --device cuda --num_workers 4 --multi_gpu
 ```
 
-### 3. Построить графики обучения
+### 3. EGNN Tensor — часть B (вектор μ + тензор α, 1-2 часа)
+
+Физически корректная модель: предсказывает полный вектор дипольного момента
+μ ∈ R³ и полный тензор поляризуемости α ∈ R^(3×3).
+
+```bash
+python src/train.py --model egnn_tensor --target all \
+    --predict_tensor_alpha \
+    --epochs 9999 --batch_size 1024 \
+    --patience 10 --es_mode or \
+    --device cuda --num_workers 4
+```
+
+### 4. Построить графики обучения
 
 ```bash
 python src/plot.py --input_dir results/experiments/batch_size_1024 \
     --save_dir results/figures/batch_size_1024 --no-show
 ```
 
-### 4. Оценка устойчивости к шуму
+### 5. Оценка устойчивости к шуму
 
 ```bash
 python src/eval_robustness.py \
@@ -46,38 +71,13 @@ python src/eval_robustness.py \
     --noise_sigma 0.0,0.05,0.10,0.15 --device cuda
 ```
 
-### 5. AutoML — автоматически выбрать архитектуру (программа максимум)
+### 6. AutoML — автоматически выбрать архитектуру (программа максимум)
 
 ```bash
-python src/automl/select.py --data_dir data/alchemy \
+python src/automl/run.py --data_dir data/alchemy \
     --n_molecules 100 --threshold 0.95 \
     --output_json results/automl/recommendation.json
 ```
-
-### 6. EGNN Tensor — вектор μ + тензор α (часть B, программа максимума)
-
-Физически корректная модель: предсказывает полный вектор дипольного момента
-μ ∈ R³ и полный тензор поляризуемости α ∈ R^(3×3) через частичные заряды атомов.
-
-```bash
-# Только вектор μ (без тензора α)
-python src/train.py --model egnn_tensor --target all --device cuda
-
-# Вектор μ + тензор α (полная часть B)
-python src/train.py --model egnn_tensor --target all --predict_tensor_alpha --device cuda
-```
-
-**Физика:**
-- μ = Σᵢ qᵢ · (rᵢ − COM) — вектор дипольного момента (B, 3)
-- α = Σᵢ qᵢ · (rᵢ − COM) ⊗ (rᵢ − COM) — тензор поляризуемости (B, 3, 3)
-- α_iso = tr(α) / 3 — изотропная поляризуемость (B, 1), совместима с Alchemy
-
-**E(3)-эквивариантность:**
-- При трансляции: μ и α не меняются
-- При вращении R: μ → R·μ, α → R·α·Rᵀ
-- При перестановке атомов: μ и α не меняются
-
-Реализация: `src/physics.py` (расчёт), `src/models/egnn_tensor.py` (модель).
 
 ## Ключевые параметры
 

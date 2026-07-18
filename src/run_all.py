@@ -74,7 +74,8 @@ def main():
 
     # Список моделей
     if args.models == "all":
-        models = ["fcnn", "schnet", "egnn", "egnn_tda", "egnn_vector", "egnn_vector_tda"]
+        # v33: добавлен egnn_tensor (часть B: вектор μ + тензор α)
+        models = ["fcnn", "schnet", "egnn", "egnn_tda", "egnn_vector", "egnn_vector_tda", "egnn_tensor"]
     else:
         models = args.models.split(",")
 
@@ -126,6 +127,10 @@ def main():
         if model_name in ("egnn_tda", "egnn_vector_tda"):
             argv.extend(['--n_bins', '16'])
             argv.extend(['--tda_mode', args.tda_mode])
+
+        # v33: для egnn_tensor — включаем predict_tensor_alpha (часть B)
+        if model_name == "egnn_tensor":
+            argv.append('--predict_tensor_alpha')
 
         # v32: запускаем train.py в subprocess — чистый процесс, без утечек
         # состояния между моделями (раньше использовался importlib.reload,

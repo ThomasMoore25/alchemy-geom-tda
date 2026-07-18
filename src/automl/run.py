@@ -10,18 +10,21 @@
   5. Выбрать лучшую и сохранить отчёт.
 
 Использование:
-  python src/automl/select.py \\
+  python src/automl/run.py \\
       --data_dir data/alchemy \\
       --n_molecules 100 \\
       --output_json results/automl/recommendation.json
 
   # С quick-train сравнением:
-  python src/automl/select.py \\
+  python src/automl/run.py \\
       --data_dir data/alchemy \\
       --n_molecules 500 \\
       --epochs 3 \\
       --quick_train \\
       --output_json results/automl/recommendation.json
+
+Примечание: файл переименован из select.py в run.py в v33.2, чтобы избежать
+конфликта со стандартным модулем Python `select` (I/O multiplexing).
 """
 import argparse
 import json

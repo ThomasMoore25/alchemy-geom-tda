@@ -15,7 +15,7 @@
 
 **Программа максимум:** ✅ выполнено (v32.38+)
 - Обратная задача экстракции prior-ов из TDA → `src/tda/priors.py`
-- Пайплайн автоматического выбора оптимальной DL архитектуры → `src/automl/select.py`
+- Пайплайн автоматического выбора оптимальной DL архитектуры → `src/automl/run.py`
 
 ## Модели
 
@@ -201,7 +201,7 @@ python src/eval_robustness.py \
 автоматически рекомендовать оптимальную архитектуру.
 
 ```bash
-python src/automl/select.py \
+python src/automl/run.py \
     --data_dir data/alchemy \
     --n_molecules 100 \
     --threshold 0.95 \
@@ -211,7 +211,7 @@ python src/automl/select.py \
 С quick-train сравнением candidate-моделей:
 
 ```bash
-python src/automl/select.py \
+python src/automl/run.py \
     --data_dir data/alchemy \
     --n_molecules 500 \
     --epochs 3 \
