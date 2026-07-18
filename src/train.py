@@ -316,6 +316,10 @@ def compute_loss(preds, batch, target: str, target_stats: dict | None = None) ->
     """
     preds = _unpack_preds(preds, target)
 
+    # v33.8: egnn_tensor возвращает физические μ и α (не нормализованные).
+    # Признак: наличие 'alpha_tensor' в preds.
+    is_physics_model = "alpha_tensor" in preds
+
     loss = 0.0
     for key in ["mu", "alpha", "gap"]:
         if target not in (key, "all"):
@@ -328,9 +332,15 @@ def compute_loss(preds, batch, target: str, target_stats: dict | None = None) ->
         # Если pred векторный (B,3) — берём норму с clamp для стабильности градиента
         if pred_val.dim() == 2 and pred_val.shape[1] == 3:
             pred_val = pred_val.norm(dim=-1, keepdim=True).clamp(min=1e-4)
+            # v33.8: нормализуем pred.norm() через target_stats
             if target_stats is not None and key in target_stats:
                 m, s = target_stats[key]
                 pred_val = (pred_val - m) / s
+        # v33.8: для физической модели (egnn_tensor) скалярная alpha тоже
+        # в физических единицах — нормализуем через target_stats
+        elif is_physics_model and key == "alpha" and target_stats is not None and key in target_stats:
+            m, s = target_stats[key]
+            pred_val = (pred_val - m) / s
 
         # Если target одномерный (B,) — добавляем размерность
         if target_val.dim() == 1:
@@ -339,7 +349,6 @@ def compute_loss(preds, batch, target: str, target_stats: dict | None = None) ->
         loss = loss + (pred_val - target_val).abs().mean()
 
     # v33 (часть B): regularization на симметрию тензора поляризуемости
-    # α должен быть симметричным (α_ij = α_ji) по физическим соображениям
     if "alpha_tensor" in preds:
         alpha_t = preds["alpha_tensor"]  # (B, 3, 3)
         sym_reg = (alpha_t - alpha_t.transpose(-1, -2)).pow(2).mean()
@@ -358,6 +367,9 @@ def compute_metrics(preds, batch, target: str, target_stats: dict | None = None,
     preds = _unpack_preds(preds, target)
     metrics = {}
 
+    # v33.8: egnn_tensor возвращает физические μ и α (не нормализованные).
+    is_physics_model = "alpha_tensor" in preds
+
     for key in ["mu", "alpha", "gap"]:
         if target not in (key, "all"):
             continue
@@ -374,14 +386,25 @@ def compute_metrics(preds, batch, target: str, target_stats: dict | None = None,
         if target_stats is not None and key in target_stats:
             mean, std = target_stats[key]
             if pred_val.dim() == 2 and pred_val.shape[1] == 3:
+                # Векторный mu (egnn_vector, egnn_tensor):
+                # pred = |μ_pred| в физических единицах (Дебай)
+                # Денормализация: pred * std + mean
                 pred_val = pred_val.norm(dim=-1, keepdim=True)
-            pred_val = pred_val * std + mean
+                pred_val = pred_val * std + mean
+            elif is_physics_model and key == "alpha":
+                # v33.8: для egnn_tensor, alpha = polarizability_iso — уже
+                # в физических единицах (Боровские кубы). Денормализация НЕ нужна.
+                pass
+            else:
+                # Обычная модель (EGNN, SchNet, FCNN): pred — нормализованное
+                # значение из MLP head. Денормализация: pred * std + mean
+                pred_val = pred_val * std + mean
 
         # Если pred всё ещё векторный (после денормализации не должно быть)
         if pred_val.dim() == 2 and pred_val.shape[1] == 3:
             pred_val = pred_val.norm(dim=-1, keepdim=True)
 
-        mae_tensor = (pred_val - target_val).abs().mean()  # тензор на GPU
+        mae_tensor = (pred_val - target_val).abs().mean()
         metrics[f"{key}_mae"] = mae_tensor.item() if as_item else mae_tensor
     return metrics
 
