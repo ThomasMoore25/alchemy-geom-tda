@@ -36,8 +36,10 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          # CPU torch ПЕРВЫМ (меньше, без CUDA wheels)
           pip install --index-url https://download.pytorch.org/whl/cpu torch
+          # Остальные зависимости (torch уже удовлетворён)
+          pip install -r requirements-dev.txt
 
       - name: Lint with ruff
         run: ruff check src/ tests/ data/
