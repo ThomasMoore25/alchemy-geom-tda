@@ -33,7 +33,8 @@ from utils import seed_everything
 def parse_args():
     p = argparse.ArgumentParser(description="Robustness evaluation")
     p.add_argument("--model", type=str, required=True,
-                   choices=["fcnn", "schnet", "egnn", "egnn_tda", "egnn_vector", "egnn_vector_tda"])
+                   choices=["fcnn", "schnet", "egnn", "egnn_tda", "egnn_vector", "egnn_vector_tda",
+                            "egnn_tensor"])
     p.add_argument("--target", type=str, default="all",
                    choices=["mu", "alpha", "gap", "all"])
     p.add_argument("--checkpoint", type=str, required=True,
@@ -63,6 +64,8 @@ def parse_args():
     p.add_argument("--n_bins", type=int, default=16)
     p.add_argument("--tda_mode", type=str, default="concat",
                    choices=["concat", "film"])
+    p.add_argument("--predict_tensor_alpha", action="store_true",
+                   help="Часть B: для egnn_tensor — предсказывать тензор α")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--device", type=str, default="auto")
     return p.parse_args()
