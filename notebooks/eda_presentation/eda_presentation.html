@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Alchemy GeomML + TDA — EDA Presentation</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: 'Segoe UI', Roboto, sans-serif;
+    background: #1a1a2e;
+    color: #eee;
+    line-height: 1.6;
+}
+.slide {
+    min-height: 100vh;
+    padding: 60px 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-bottom: 2px solid #2a2a4a;
+}
+.slide h1 {
+    font-size: 42px;
+    margin-bottom: 30px;
+    color: #fff;
+    border-bottom: 4px solid #4CAF50;
+    padding-bottom: 15px;
+}
+.slide h2 {
+    font-size: 28px;
+    margin: 20px 0;
+    color: #4CAF50;
+}
+.slide h3 {
+    font-size: 22px;
+    margin: 15px 0;
+    color: #FF9800;
+}
+.slide p, .slide li {
+    font-size: 18px;
+    margin: 8px 0;
+}
+.slide ul { margin-left: 30px; }
+.slide img {
+    max-width: 100%;
+    height: auto;
+    margin: 20px auto;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    display: block;
+}
+.slide .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+.slide .stat {
+    background: rgba(255,255,255,0.05);
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 4px solid #2196F3;
+    margin: 15px 0;
+}
+.slide .stat .value {
+    font-size: 36px;
+    font-weight: bold;
+    color: #4CAF50;
+}
+.slide .stat .label {
+    font-size: 16px;
+    color: #aaa;
+}
+.slide .badge {
+    display: inline-block;
+    background: #4CAF50;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 14px;
+    margin-right: 8px;
+}
+.slide .badge.orange { background: #FF9800; }
+.slide .badge.blue { background: #2196F3; }
+.slide .badge.purple { background: #9C27B0; }
+.slide nav {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(0,0,0,0.8);
+    padding: 10px 15px;
+    border-radius: 8px;
+    z-index: 100;
+}
+.slide nav a {
+    color: #4CAF50;
+    text-decoration: none;
+    margin: 0 5px;
+}
+.slide nav a:hover { color: #FF9800; }
+table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+th, td { padding: 10px; text-align: left; border-bottom: 1px solid #2a2a4a; }
+th { background: #2a2a4a; color: #4CAF50; }
+</style>
+</head>
+<body>
+
+<!-- Slide 1: Title -->
+<section class="slide">
+    <span class="badge blue">v1.0</span>
+    <span class="badge orange">202,579 molecules</span>
+    <span class="badge purple">E(3)-equivariant</span>
+    <h1>Alchemy GeomML + TDA</h1>
+    <p style="font-size: 24px;">Предсказание квантово-механических свойств молекул с использованием геометрического глубокого обучения и топологического анализа данных</p>
+    <div class="two-col" style="margin-top: 40px;">
+        <div class="stat">
+            <div class="value">202,579</div>
+            <div class="label">молекул в датасете Alchemy</div>
+        </div>
+        <div class="stat">
+            <div class="value">6</div>
+            <div class="label">моделей: FCNN → EGNN Vector+TDA</div>
+        </div>
+        <div class="stat">
+            <div class="value">E(3)</div>
+            <div class="label">эквивариантность (translation + rotation + permutation)</div>
+        </div>
+        <div class="stat">
+            <div class="value">52D</div>
+            <div class="label">TDA-фичи: Betti curves + persistence entropy</div>
+        </div>
+    </div>
+    <nav><a href="#2">↓</a></nav>
+</section>
+
+<!-- Slide 2: Dataset Overview -->
+<section class="slide" id="2">
+    <h1>Датасет Alchemy</h1>
+    <p>Alchemy v20191129 — это подмножество GDB-17 базы органических молекул, для которых вычислены DFT-свойства (B3LYP/6-31G(2df,p)).</p>
+    <img src="slide1_overview.png" alt="Dataset overview">
+    <p><strong>3 таргета:</strong> μ (диполь, Дебай), α (поляризуемость, a₀³), gap (HOMO-LUMO, Хартри).</p>
+    <p><strong>7 типов атомов:</strong> H, C, N, O, F, S, Cl. Молекулы содержат 9–29 атомов.</p>
+    <nav><a href="#1">↑</a> <a href="#3">↓</a></nav>
+</section>
+
+<!-- Slide 3: Correlations -->
+<section class="slide" id="3">
+    <h1>Корреляции между свойствами</h1>
+    <p>5,000 случайных молекул. Видна положительная корреляция μ ↔ α (более полярные молекулы более поляризуемы).</p>
+    <img src="slide2_correlations.png" alt="Correlations">
+    <p>Gap слабо коррелирует с μ и α — это независимая электронная характеристика.</p>
+    <nav><a href="#2">↑</a> <a href="#4">↓</a></nav>
+</section>
+
+<!-- Slide 4: Symmetries -->
+<section class="slide" id="4">
+    <h1>Геометрические симметрии молекул</h1>
+    <p>Физические свойства молекул не меняются при E(3)-преобразованиях:</p>
+    <ul>
+        <li><strong>Трансляция</strong> — сдвиг всей молекулы в пространстве (инвариантность)</li>
+        <li><strong>Вращение SO(3)</strong> — поворот молекулы (эквивариантность: μ-вектор вращается вместе с ней)</li>
+        <li><strong>Перестановка одинаковых атомов</strong> — переупорядочивание нумерации (инвариантность)</li>
+    </ul>
+    <img src="slide3_symmetries.png" alt="Symmetries">
+    <p>EGNN встраивает эти симметрии в архитектуру — обучение быстрее и точнее, чем у обычных MLP.</p>
+    <nav><a href="#3">↑</a> <a href="#5">↓</a></nav>
+</section>
+
+<!-- Slide 5: Models -->
+<section class="slide" id="5">
+    <h1>6 моделей разной эквивариантности</h1>
+    <table>
+        <tr><th>Модель</th><th>Эквивариантность</th><th>TDA</th><th>Описание</th></tr>
+        <tr><td>FCNN</td><td>нет</td><td>нет</td><td>Базовый MLP на дескрипторах</td></tr>
+        <tr><td>SchNet</td><td>translation + permutation</td><td>нет</td><td>Continuous filter convolutions</td></tr>
+        <tr><td>EGNN</td><td>E(3)</td><td>нет</td><td>E(3)-эквивариантная сеть</td></tr>
+        <tr><td>EGNN+TDA</td><td>E(3)</td><td>да</td><td>EGNN + топологические признаки</td></tr>
+        <tr><td>EGNN Vector</td><td>E(3)</td><td>нет</td><td>EGNN с векторным выходом μ</td></tr>
+        <tr><td>EGNN Vector+TDA</td><td>E(3)</td><td>да</td><td>EGNN Vector + TDA</td></tr>
+    </table>
+    <img src="slide4_models_comparison.png" alt="Models comparison">
+    <nav><a href="#4">↑</a> <a href="#6">↓</a></nav>
+</section>
+
+<!-- Slide 6: TDA -->
+<section class="slide" id="6">
+    <h1>Topological Data Analysis (TDA)</h1>
+    <p>Извлечение инвариантных топологических признаков из 3D-структуры молекулы.</p>
+    <h2>Как это работает</h2>
+    <ol style="margin-left: 30px; font-size: 18px;">
+        <li><strong>Vietoris-Rips фильтрация</strong> — строим серии симплициальных комплексов для возрастающих радиусов</li>
+        <li><strong>Персистентная гомология</strong> — отслеживаем "живущие" особенности (компоненты H₀, петли H₁, пустоты H₂)</li>
+        <li><strong>Betti curves</strong> — число активных особенностей по уровням фильтрации (16 бинов × 3 размерности = 48D)</li>
+        <li><strong>Persistence entropy</strong> — энтропия распределения персистентностей (3D)</li>
+        <li><strong>Средняя персистентность</strong> — обобщённая статистика (1D)</li>
+    </ol>
+    <p><strong>Итог:</strong> 52D вектор на молекулу, E(3)-инвариантный по построению.</p>
+    <img src="slide5_tda.png" alt="TDA features">
+    <nav><a href="#5">↑</a> <a href="#7">↓</a></nav>
+</section>
+
+<!-- Slide 7: AutoML -->
+<section class="slide" id="7">
+    <h1>AutoML — автоматический выбор архитектуры</h1>
+    <p><strong>Программа максимум:</strong> обратная задача — извлечь геометрические priors из TDA и рекомендовать оптимальную архитектуру.</p>
+    <h2>Алгоритм</h2>
+    <ol style="margin-left: 30px; font-size: 18px;">
+        <li>Загружаем N молекул из датасета (только координаты)</li>
+        <li>Для каждой молекулы применяем случайные E(3)-преобразования (translation, rotation, permutation)</li>
+        <li>Сравниваем TDA-фичи до/после преобразования</li>
+        <li>Если TDA инвариантна к преобразованию (score ≥ 0.95) → соответствующий prior присутствует в данных</li>
+        <li>Рекомендуем архитектуру с подходящими эквивариантностями</li>
+    </ol>
+    <h2>Результат на Alchemy</h2>
+    <div class="two-col">
+        <div class="stat">
+            <div class="value">1.0000</div>
+            <div class="label">translation invariance</div>
+        </div>
+        <div class="stat">
+            <div class="value">1.0000</div>
+            <div class="label">rotation invariance</div>
+        </div>
+        <div class="stat">
+            <div class="value">1.0000</div>
+            <div class="label">permutation invariance</div>
+        </div>
+        <div class="stat">
+            <div class="value">EGNN</div>
+            <div class="label">recommended architecture</div>
+        </div>
+    </div>
+    <p style="margin-top: 30px;">Все три E(3) симметрии присутствуют → EGNN — правильный выбор.</p>
+    <nav><a href="#6">↑</a> <a href="#8">↓</a></nav>
+</section>
+
+<!-- Slide 8: Results -->
+<section class="slide" id="8">
+    <h1>Результаты и воспроизводимость</h1>
+    <h2>Что получаем после обучения</h2>
+    <ul>
+        <li><code>checkpoints/&lt;model&gt;_all_best.pt</code> — лучший чекпойнт</li>
+        <li><code>results/experiments/batch_size_512/history_*.csv</code> — история по эпохам</li>
+        <li><code>results/experiments/batch_size_512/summary_*.csv</code> — сводка метрик</li>
+        <li><code>results/experiments/batch_size_512/args_*.json</code> — все гиперпараметры</li>
+        <li><code>results/experiments/batch_size_512/target_stats_*.json</code> — нормализация</li>
+        <li><code>results/figures/*.png</code> — графики обучения + parity plots</li>
+        <li><code>results/robustness/*.csv</code> — robustness eval</li>
+        <li><code>results/automl/recommendation.json</code> — отчёт AutoML</li>
+    </ul>
+    <h2>Воспроизводимость</h2>
+    <ul>
+        <li>seed=42 (фиксированный)</li>
+        <li>Stratified split 80/10/10 по HOMO-LUMO gap</li>
+        <li>Target normalization: (y - mean) / std по train выборке</li>
+        <li>108 pytest тестов + ruff lint чистый</li>
+        <li>Dockerfile для воспроизводимого окружения</li>
+    </ul>
+    <h2>Ссылки</h2>
+    <p>• <a href="https://github.com/ThomasMoore25/alchemy-geom-tda" style="color: #4CAF50;">github.com/ThomasMoore25/alchemy-geom-tda</a></p>
+    <p>• <a href="https://arxiv.org/pdf/1906.09427" style="color: #4CAF50;">Alchemy paper (Chen et al., 2019)</a></p>
+    <p>• <a href="https://arxiv.org/abs/2107.02994" style="color: #4CAF50;">EGNN paper (Satorras et al., 2021)</a></p>
+    <nav><a href="#7">↑</a> <a href="#1">⌂</a></nav>
+</section>
+
+</body>
+</html>
