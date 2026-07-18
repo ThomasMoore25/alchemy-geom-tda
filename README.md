@@ -1,8 +1,8 @@
 # Alchemy GeomML + TDA
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python Tests](https://img.shields.io/badge/tests-108%20passing-green.svg)](tests/)
-[![Version](https://img.shields.io/badge/version-v32.38-blue.svg)](CHANGELOG)
+[![Python Tests](https://img.shields.io/badge/tests-128%20passing-green.svg)](tests/)
+[![Version](https://img.shields.io/badge/version-v33.0-blue.svg)](CHANGELOG)
 
 Предсказание квантово-механических свойств молекул датасета [Alchemy](https://arxiv.org/pdf/1906.09427) (202,579 молекул) с использованием геометрического глубокого обучения и топологического анализа данных.
 
@@ -19,14 +19,27 @@
 
 ## Модели
 
-| # | Модель | Эквивариантность | TDA | Описание |
-|---|--------|------------------|-----|----------|
-| 1 | **FCNN** | нет | нет | Базовый многослойный перцептрон (на глобальных дескрипторах) |
-| 2 | **SchNet** | трансляции + перестановки | нет | Continuous filter convolutions |
-| 3 | **EGNN** | E(3) (трансляции + вращения + перестановки) | нет | E(3)-эквивариантная сеть (egnn-pytorch) |
-| 4 | **EGNN+TDA** | E(3) | да | EGNN + топологические признаки (Vietoris-Rips, Betti curves) |
-| 5 | **EGNN Vector** | E(3) | нет | EGNN с векторным выходом для μ (через Σ qᵢ·(rᵢ−COM)) |
-| 6 | **EGNN Vector+TDA** | E(3) | да | EGNN Vector + топологические признаки |
+| # | Модель | Эквивариантность | TDA | μ выход | α выход | Описание |
+|---|--------|------------------|-----|---------|---------|----------|
+| 1 | **FCNN** | нет | нет | скаляр | скаляр | Базовый MLP на дескрипторах |
+| 2 | **SchNet** | transl + perm | нет | скаляр | скаляр | Continuous filter convolutions |
+| 3 | **EGNN** | E(3) | нет | скаляр | скаляр | E(3)-эквивариантная сеть |
+| 4 | **EGNN+TDA** | E(3) | да | скаляр | скаляр | EGNN + TDA (concat/film) |
+| 5 | **EGNN Vector** | E(3) | нет | **вектор R³** | скаляр | EGNN с эквивариантным μ |
+| 6 | **EGNN Vector+TDA** | E(3) | да | **вектор R³** | скаляр | EGNN Vector + TDA |
+| 7 | **EGNN Tensor** ⭐ | E(3) | нет | **вектор R³** | **тензор R^(3×3)** | Часть B: физически корректные μ и α |
+
+⭐ **EGNN Tensor** (часть B, программа максимума) — предсказывает полный вектор
+дипольного момента μ ∈ R³ и полный тензор поляризуемости α ∈ R^(3×3) через
+частичные заряды атомов. Это **физически корректная** модель: при повороте
+молекулы μ и α поворачиваются вместе с ней (эквивариантность 1-го и 2-го ранга).
+
+```python
+# src/physics.py
+mu = Σᵢ qᵢ · (rᵢ − COM)                       # (B, 3) — вектор
+alpha = Σᵢ qᵢ · (rᵢ − COM) ⊗ (rᵢ − COM)      # (B, 3, 3) — тензор
+alpha_iso = trace(alpha) / 3                  # (B, 1) — совместимость с Alchemy
+```
 
 ## Таргеты
 

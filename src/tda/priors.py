@@ -77,6 +77,12 @@ def tda_invariance_score(
     if coords.ndim != 2 or coords.shape[1] != 3:
         raise ValueError(f"coords must be (N, 3), got {coords.shape}")
 
+    # v33: проверка transform ДО вычисления TDA, чтобы неверное имя
+    # всегда поднимало ValueError, даже если base_features пустые
+    valid_transforms = {"translation", "rotation", "permutation"}
+    if transform not in valid_transforms:
+        raise ValueError(f"Unknown transform: {transform}. Must be one of {valid_transforms}")
+
     # Базовые TDA-фичи
     base_features = extract_tda_features(
         coords, n_bins=n_bins, max_radius=max_radius

@@ -54,11 +54,36 @@ python src/automl/select.py --data_dir data/alchemy \
     --output_json results/automl/recommendation.json
 ```
 
+### 6. EGNN Tensor — вектор μ + тензор α (часть B, программа максимума)
+
+Физически корректная модель: предсказывает полный вектор дипольного момента
+μ ∈ R³ и полный тензор поляризуемости α ∈ R^(3×3) через частичные заряды атомов.
+
+```bash
+# Только вектор μ (без тензора α)
+python src/train.py --model egnn_tensor --target all --device cuda
+
+# Вектор μ + тензор α (полная часть B)
+python src/train.py --model egnn_tensor --target all --predict_tensor_alpha --device cuda
+```
+
+**Физика:**
+- μ = Σᵢ qᵢ · (rᵢ − COM) — вектор дипольного момента (B, 3)
+- α = Σᵢ qᵢ · (rᵢ − COM) ⊗ (rᵢ − COM) — тензор поляризуемости (B, 3, 3)
+- α_iso = tr(α) / 3 — изотропная поляризуемость (B, 1), совместима с Alchemy
+
+**E(3)-эквивариантность:**
+- При трансляции: μ и α не меняются
+- При вращении R: μ → R·μ, α → R·α·Rᵀ
+- При перестановке атомов: μ и α не меняются
+
+Реализация: `src/physics.py` (расчёт), `src/models/egnn_tensor.py` (модель).
+
 ## Ключевые параметры
 
 | Параметр | По умолчанию | Описание |
 |---|---|---|
-| `--model` | (обязательный) | `fcnn` / `schnet` / `egnn` / `egnn_tda` / `egnn_vector` / `egnn_vector_tda` |
+| `--model` | (обязательный) | `fcnn` / `schnet` / `egnn` / `egnn_tda` / `egnn_vector` / `egnn_vector_tda` / `egnn_tensor` (часть B) |
 | `--target` | `all` | `mu` / `alpha` / `gap` / `all` |
 | `--epochs` | `9999` | Максимум (EarlyStopping остановит раньше) |
 | `--batch_size` | `1024` | Размер батча |

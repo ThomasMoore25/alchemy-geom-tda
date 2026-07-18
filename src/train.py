@@ -110,7 +110,8 @@ def parse_args():
                    help="Путь к YAML-конфигу (например, configs/default.yaml). "
                         "Значения из CLI имеют приоритет над значениями из YAML.")
     p.add_argument("--model", type=str, default=None,
-                   choices=["fcnn", "schnet", "egnn", "egnn_tda", "egnn_vector", "egnn_vector_tda"],
+                   choices=["fcnn", "schnet", "egnn", "egnn_tda", "egnn_vector", "egnn_vector_tda",
+                            "egnn_tensor"],
                    help="Тип модели")
     p.add_argument("--target", type=str, default="all",
                    choices=["mu", "alpha", "gap", "all"],
@@ -162,6 +163,9 @@ def parse_args():
                    choices=["concat", "film"],
                    help="Способ интеграции TDA: concat (по умолчанию) или film "
                         "(FiLM-модуляция mol_emb через TDA)")
+    p.add_argument("--predict_tensor_alpha", action="store_true",
+                   help="Часть B: предсказывать полный тензор поляризуемости α ∈ R^(3×3) "
+                        "вместо скалярной изотропной α. Только для egnn_tensor модели.")
     p.add_argument("--patience", type=int, default=15, help="Early stopping patience")
     p.add_argument("--es_mode", type=str, default="and",
                    choices=["and", "or", "loss_only"],
@@ -262,6 +266,19 @@ def build_model(args, tda_dim: int = 0):
             predict_gap=pred_gap,
         )
 
+    elif args.model == "egnn_tensor":
+        # Часть B: вектор μ + тензор α (программа максимума)
+        from models.egnn_tensor import build_egnn_tensor
+        return build_egnn_tensor(
+            hidden_channels=args.hidden_channels,
+            num_layers=args.num_layers,
+            cutoff=args.cutoff,
+            k_neighbors=args.k_neighbors,
+            m_dim=args.m_dim,
+            predict_alpha_tensor=args.predict_tensor_alpha,
+            predict_gap=pred_gap,
+        )
+
     raise ValueError(f"Unknown model: {args.model}")
 
 
@@ -291,11 +308,11 @@ def compute_loss(preds, batch, target: str, target_stats: dict | None = None) ->
     сингулярности градиента d|x|/dx = x/|x| при |x| -> 0.
 
     v32: если pred векторный (B,3) и есть target_stats, нормализуем pred.norm()
-    теми же mean/std, что и target. Без этого pred в физических единицах
-    (always >= 0), а target может быть отрицательным после нормализации
-    (например, (mu - mean) / std < 0 для молекул с mu < mean). EGNN Vector
-    принципиально не может предсказать отрицательное значение (это норма),
-    поэтому loss был искусственно завышен для таких молекул.
+    теми же mean/std, что и target.
+
+    v33 (часть B): если в preds есть 'alpha_tensor' (B, 3, 3), добавляем
+    soft regularization на симметрию (хотя по построению уже симметричный,
+    на всякий случай штрафуем ||α − αᵀ||₂).
     """
     preds = _unpack_preds(preds, target)
 
@@ -311,8 +328,6 @@ def compute_loss(preds, batch, target: str, target_stats: dict | None = None) ->
         # Если pred векторный (B,3) — берём норму с clamp для стабильности градиента
         if pred_val.dim() == 2 and pred_val.shape[1] == 3:
             pred_val = pred_val.norm(dim=-1, keepdim=True).clamp(min=1e-4)
-            # v32: нормализуем pred теми же mean/std, что и target,
-            # чтобы pred и target были в одном масштабе
             if target_stats is not None and key in target_stats:
                 m, s = target_stats[key]
                 pred_val = (pred_val - m) / s
@@ -322,6 +337,14 @@ def compute_loss(preds, batch, target: str, target_stats: dict | None = None) ->
             target_val = target_val.unsqueeze(-1)
 
         loss = loss + (pred_val - target_val).abs().mean()
+
+    # v33 (часть B): regularization на симметрию тензора поляризуемости
+    # α должен быть симметричным (α_ij = α_ji) по физическим соображениям
+    if "alpha_tensor" in preds:
+        alpha_t = preds["alpha_tensor"]  # (B, 3, 3)
+        sym_reg = (alpha_t - alpha_t.transpose(-1, -2)).pow(2).mean()
+        loss = loss + 0.01 * sym_reg  # малый вес — regularization
+
     return loss
 
 

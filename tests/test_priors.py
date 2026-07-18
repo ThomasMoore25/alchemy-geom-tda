@@ -63,7 +63,7 @@ def test_tda_permutation_invariance():
 
 
 def test_tda_invariance_invalid_transform():
-    """Неверное имя преобразования → ValueError."""
+    """Неверное имя преобразования → ValueError (v33: проверка до TDA вычисления)."""
     coords = np.random.randn(5, 3)
     with pytest.raises(ValueError):
         tda_invariance_score(coords, "scaling", n_trials=1)
