@@ -1,10 +1,21 @@
 # Alchemy GeomML + TDA
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python Tests](https://img.shields.io/badge/tests-89%20passing-green.svg)](tests/)
-[![Version](https://img.shields.io/badge/version-v32.32-blue.svg)](CHANGELOG)
+[![Python Tests](https://img.shields.io/badge/tests-108%20passing-green.svg)](tests/)
+[![Version](https://img.shields.io/badge/version-v32.38-blue.svg)](CHANGELOG)
 
 Предсказание квантово-механических свойств молекул датасета [Alchemy](https://arxiv.org/pdf/1906.09427) (202,579 молекул) с использованием геометрического глубокого обучения и топологического анализа данных.
+
+## Задание
+
+**Программа минимум:** ✅ выполнено
+- (а) Простейший полный пайплайн для построения решения с геометрическим ML на датасете с известными геометрическими prior-ами
+- (b) Обучить геометрическую модель на исходных данных и с использованием топологических фич
+- (с) Enjoy!
+
+**Программа максимум:** ✅ выполнено (v32.38+)
+- Обратная задача экстракции prior-ов из TDA → `src/tda/priors.py`
+- Пайплайн автоматического выбора оптимальной DL архитектуры → `src/automl/select.py`
 
 ## Модели
 
@@ -60,6 +71,9 @@ pip install -r requirements.txt
 ```bash
 pip install torch torch-geometric gudhi rdkit egnn-pytorch pandas matplotlib numpy scipy
 ```
+
+> **Краткая инструкция по запуску:** см. [`QUICKSTART.md`](QUICKSTART.md) — все команды по шагам.
+> **Интерактивный туториал:** см. [`notebooks/alchemy_geom_tda_quickstart.ipynb`](notebooks/alchemy_geom_tda_quickstart.ipynb) — Jupyter-ноутбук с пошаговым запуском.
 
 ## Использование
 
@@ -167,6 +181,55 @@ python src/eval_robustness.py \
 ```
 
 Сохраняет CSV с метриками при разных sigma в `results/robustness/<model>_robustness.csv`.
+
+## AutoML: автоматический выбор архитектуры (программа максимум, v32.38+)
+
+Обратная задача: по TDA-фичам датасета извлечь геометрические priors и
+автоматически рекомендовать оптимальную архитектуру.
+
+```bash
+python src/automl/select.py \
+    --data_dir data/alchemy \
+    --n_molecules 100 \
+    --threshold 0.95 \
+    --output_json results/automl/recommendation.json
+```
+
+С quick-train сравнением candidate-моделей:
+
+```bash
+python src/automl/select.py \
+    --data_dir data/alchemy \
+    --n_molecules 500 \
+    --epochs 3 \
+    --quick_train \
+    --candidates fcnn,schnet,egnn,egnn_tda \
+    --output_json results/automl/recommendation.json
+```
+
+**Как это работает:**
+
+1. Загружает N молекул из датасета (только координаты).
+2. Для каждой молекулы применяет случайные изометрические преобразования
+   (translation, rotation, permutation) и сравнивает TDA-фичи до/после.
+3. Если TDA инвариантна к преобразованию (score >= threshold) →
+   соответствующий prior присутствует в данных.
+4. Рекомендует архитектуру:
+   - Все три E(3) симметрии → `egnn` (E(3)-эквивариантная сеть)
+   - Только translation + permutation → `schnet` (без rotation)
+   - Только permutation → `fcnn` (baseline достаточно)
+   - Сильных priors нет → `fcnn` (baseline достаточно)
+5. Опционально: quick-train несколько моделей на подвыборке и
+   сравнить val_loss.
+
+**На Alchemy датасете** (30 молекул, threshold=0.95):
+- translation_invariance: 1.0000
+- rotation_invariance: 1.0000
+- permutation_invariance: 1.0000
+- **Recommended: `egnn`** (все три E(3) симметрии присутствуют)
+
+Отчёт сохраняется в `results/automl/recommendation.json` со всеми
+деталями priors и quick-train результатов.
 
 ## Docker (v32+)
 

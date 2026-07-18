@@ -1,0 +1,36 @@
+{
+  "timestamp": "2026-07-17T15:55:29.031755",
+  "args": {
+    "data_dir": "data/alchemy",
+    "n_molecules": 30,
+    "n_bins": 16,
+    "max_radius": 5.0,
+    "n_trials": 2,
+    "seed": 42,
+    "threshold": 0.95,
+    "quick_train": false,
+    "epochs": 3,
+    "batch_size": 64,
+    "device": "cpu",
+    "output_json": "results/automl/recommendation.json",
+    "candidates": "fcnn,schnet,egnn,egnn_tda"
+  },
+  "priors": {
+    "translation_invariance": 1.0,
+    "rotation_invariance": 1.0,
+    "permutation_invariance": 1.0,
+    "n_molecules": 30,
+    "n_molecules_success": 30
+  },
+  "recommendation": {
+    "required_invariances": [
+      "translation",
+      "rotation",
+      "permutation"
+    ],
+    "recommended_model": "egnn",
+    "needs_tda": true,
+    "rationale": "\u0412\u0441\u0435 \u0442\u0440\u0438 E(3) \u0441\u0438\u043c\u043c\u0435\u0442\u0440\u0438\u0438 \u043f\u0440\u0438\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u044e\u0442 \u043a\u0430\u043a \u0441\u0438\u043b\u044c\u043d\u044b\u0435 priors. \u0420\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u0443\u0435\u0442\u0441\u044f EGNN (E(3)-\u044d\u043a\u0432\u0438\u0432\u0430\u0440\u0438\u0430\u043d\u0442\u043d\u0430\u044f \u0441\u0435\u0442\u044c). TDA-\u0444\u0438\u0447\u0438 \u043c\u043e\u0433\u0443\u0442 \u0434\u043e\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c\u043d\u043e \u0443\u043b\u0443\u0447\u0448\u0438\u0442\u044c \u043c\u0435\u0442\u0440\u0438\u043a\u0438 \u0447\u0435\u0440\u0435\u0437 --tda_mode film."
+  },
+  "quick_train_results": null
+}

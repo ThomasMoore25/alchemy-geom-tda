@@ -1,0 +1,7 @@
+model,csv,epochs,best_epoch,best_val_loss,test_mu_mae,test_alpha_mae,test_gap_mae,test_loss,sec_per_epoch
+fcnn,history_fcnn_all_20260717_090751.csv,5,5,1.8452,1.2247,4.5221,0.0076,1.8213,0.2
+schnet,history_schnet_all_20260717_090856.csv,5,5,2.1694,1.2673,8.6348,0.0075,2.1486,11.7
+egnn,history_egnn_all_20260717_091245.csv,5,4,2.309,1.5198,10.2024,0.0066,2.297,29.2
+egnn_tda,history_egnn_tda_all_20260717_091621.csv,5,4,2.0459,1.2999,6.7995,0.0077,2.0458,52.5
+egnn_vector,history_egnn_vector_all_20260717_091816.csv,5,5,2.8859,8.3673,9.0886,0.0082,2.7048,20.9
+egnn_vector_tda,history_egnn_vector_tda_all_20260717_092243.csv,5,5,3.0252,9.0703,7.6053,0.0083,3.0133,50.3
