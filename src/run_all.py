@@ -78,7 +78,7 @@ def main():
     # Список моделей
     if args.models == "all":
         # v33: добавлен egnn_tensor (часть B: вектор μ + тензор α)
-        models = ["fcnn", "schnet", "egnn", "egnn_tda", "egnn_vector", "egnn_vector_tda", "egnn_tensor"]
+        models = ["fcnn", "schnet", "egnn", "egnn_tda", "egnn_vector", "egnn_vector_tda", "egnn_tensor", "egnn_tensor_tda"]
     else:
         models = args.models.split(",")
 
@@ -127,12 +127,12 @@ def main():
             argv.extend(['--max_test', str(args.max_test)])
 
         # TDA-специфичные параметры
-        if model_name in ("egnn_tda", "egnn_vector_tda"):
+        if model_name in ("egnn_tda", "egnn_vector_tda", "egnn_tensor_tda"):
             argv.extend(['--n_bins', '16'])
             argv.extend(['--tda_mode', args.tda_mode])
 
-        # v33: для egnn_tensor — включаем predict_tensor_alpha (часть B)
-        if model_name == "egnn_tensor":
+        # v33: для egnn_tensor и egnn_tensor_tda — включаем predict_tensor_alpha
+        if model_name in ("egnn_tensor", "egnn_tensor_tda"):
             argv.append('--predict_tensor_alpha')
 
         # v32: запускаем train.py в subprocess — чистый процесс, без утечек

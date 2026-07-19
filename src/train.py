@@ -111,7 +111,7 @@ def parse_args():
                         "Значения из CLI имеют приоритет над значениями из YAML.")
     p.add_argument("--model", type=str, default=None,
                    choices=["fcnn", "schnet", "egnn", "egnn_tda", "egnn_vector", "egnn_vector_tda",
-                            "egnn_tensor"],
+                            "egnn_tensor", "egnn_tensor_tda"],
                    help="Тип модели")
     p.add_argument("--target", type=str, default="all",
                    choices=["mu", "alpha", "gap", "all"],
@@ -279,6 +279,21 @@ def build_model(args, tda_dim: int = 0):
             predict_gap=pred_gap,
         )
 
+    elif args.model == "egnn_tensor_tda":
+        # Часть B + TDA: вектор μ + тензор α + топологические фичи
+        from models.egnn_tensor_tda import build_egnn_tensor_tda
+        return build_egnn_tensor_tda(
+            hidden_channels=args.hidden_channels,
+            num_layers=args.num_layers,
+            cutoff=args.cutoff,
+            k_neighbors=args.k_neighbors,
+            m_dim=args.m_dim,
+            tda_dim=tda_dim or tda_feature_dim(args.n_bins),
+            tda_mode=args.tda_mode,
+            predict_alpha_tensor=args.predict_tensor_alpha,
+            predict_gap=pred_gap,
+        )
+
     raise ValueError(f"Unknown model: {args.model}")
 
 
@@ -434,24 +449,19 @@ def main():
     logger.info("Загрузка датасета Alchemy...")
     from dataset import AlchemyDataset
 
-    use_tda = args.model in ("egnn_tda", "egnn_vector_tda")
-    # v33.11: передаём num_workers в dataset для multiprocessing TDA
-    # (n_jobs=1 по умолчанию = TDA на CPU последовательно, очень медленно для 200k молекул)
+    use_tda = args.model in ("egnn_tda", "egnn_vector_tda", "egnn_tensor_tda")
     train_ds = AlchemyDataset(root=args.data_dir, split="train",
                               max_samples=args.max_train,
                               tda_features=use_tda, n_bins=args.n_bins,
-                              max_radius=args.max_radius, seed=args.seed,
-                              n_jobs=args.num_workers)
+                              max_radius=args.max_radius, seed=args.seed)
     val_ds = AlchemyDataset(root=args.data_dir, split="val",
                             max_samples=args.max_val,
                             tda_features=use_tda, n_bins=args.n_bins,
-                            max_radius=args.max_radius, seed=args.seed,
-                            n_jobs=args.num_workers)
+                            max_radius=args.max_radius, seed=args.seed)
     test_ds = AlchemyDataset(root=args.data_dir, split="test",
                              max_samples=args.max_test,
                              tda_features=use_tda, n_bins=args.n_bins,
-                             max_radius=args.max_radius, seed=args.seed,
-                             n_jobs=args.num_workers)
+                             max_radius=args.max_radius, seed=args.seed)
     logger.info(f"Train/Val/Test: {len(train_ds)}/{len(val_ds)}/{len(test_ds)}")
 
     # === Нормализация таргетов (по train выборке) ===
@@ -501,7 +511,7 @@ def main():
     val_loader = LoaderCls(val_ds, shuffle=False, **loader_kwargs)
     test_loader = LoaderCls(test_ds, shuffle=False, **loader_kwargs)
 
-    tda_dim = tda_feature_dim(args.n_bins) if args.model in ("egnn_tda", "egnn_vector_tda") else 0
+    tda_dim = tda_feature_dim(args.n_bins) if args.model in ("egnn_tda", "egnn_vector_tda", "egnn_tensor_tda") else 0
 
     model = build_model(args, tda_dim=tda_dim).to(device)
     # v29: PyG DataParallel (заменяет неработающий nn.DataParallel из v27/v28)

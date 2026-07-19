@@ -34,7 +34,7 @@ def parse_args():
     p = argparse.ArgumentParser(description="Robustness evaluation")
     p.add_argument("--model", type=str, required=True,
                    choices=["fcnn", "schnet", "egnn", "egnn_tda", "egnn_vector", "egnn_vector_tda",
-                            "egnn_tensor"])
+                            "egnn_tensor", "egnn_tensor_tda"])
     p.add_argument("--target", type=str, default="all",
                    choices=["mu", "alpha", "gap", "all"])
     p.add_argument("--checkpoint", type=str, required=True,
