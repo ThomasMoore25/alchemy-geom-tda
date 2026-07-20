@@ -2,7 +2,19 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python Tests](https://img.shields.io/badge/tests-129%20passing-green.svg)](tests/)
-[![Version](https://img.shields.io/badge/version-v35.0-blue.svg)](CHANGELOG)
+[![Version](https://img.shields.io/badge/version-v35.2-blue.svg)](CHANGELOG)
+
+> ## ⭐ Настоятельно рекомендуется посмотреть презентацию перед приёмом работы
+>
+> **Интерактивная HTML-презентация (20 слайдов, 3D-визуализации + 13 графиков):**
+> [`docs/presentation/alchemy_geom_tda_v35_presentation.html`](docs/presentation/alchemy_geom_tda_v35_presentation.html)
+>
+> Откройте файл в любом современном браузере (нужен интернет для Plotly.js CDN и Google Fonts).
+> В презентации подробно разобраны: 3D-структура молекулы, три типа эквивариантности
+> (скаляр/вектор/тензор), нормализация таргетов, Auto-ML, 3 эксперимента с 8 моделями,
+> 13 графиков, выводы и воспроизводимость.
+>
+> Управление: **← / → / Space / N / P / Home / End**. На 3D-слайдах есть кнопка «▶ Анимация».
 
 Предсказание квантово-механических свойств молекул датасета [Alchemy](https://arxiv.org/pdf/1906.09427) (202,579 молекул) с использованием геометрического глубокого обучения и топологического анализа данных.
 
