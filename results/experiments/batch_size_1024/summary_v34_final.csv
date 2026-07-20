@@ -1,0 +1,7 @@
+model,status,train_time_s,n_epochs,best_epoch,best_val_loss,test_mu_mae,test_alpha_mae,test_gap_mae,test_loss,csv_file
+egnn,OK,12500,135,125,0.344,0.284,0.583,0.0058,0.344,history_egnn_all_v34.csv
+egnn_tda,OK,13900,146,136,0.362,0.298,0.619,0.0061,0.362,history_egnn_tda_all_v34.csv
+egnn_vector,OK,18975,188,178,0.167,4.123,0.354,0.0044,0.167,history_egnn_vector_all_v34.csv
+egnn_vector_tda,OK,11279,108,98,0.216,4.121,0.51,0.0055,0.216,history_egnn_vector_tda_all_v34.csv
+egnn_tensor,OK,43100,475,465,0.394,4.121,0.957,0.0091,0.394,history_egnn_tensor_all_v34.csv
+egnn_tensor_tda,OK,29317,273,263,0.428,4.111,1.011,0.0104,0.428,history_egnn_tensor_tda_all_v34.csv
