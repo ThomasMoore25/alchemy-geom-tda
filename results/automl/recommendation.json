@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-07-17T15:55:29.031755",
+  "timestamp": "2026-07-20T06:40:52.668803",
   "args": {
     "data_dir": "data/alchemy",
     "n_molecules": 30,
     "n_bins": 16,
     "max_radius": 5.0,
-    "n_trials": 2,
+    "n_trials": 3,
     "seed": 42,
     "threshold": 0.95,
     "quick_train": false,

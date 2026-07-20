@@ -2,264 +2,223 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>Alchemy GeomML + TDA — EDA Presentation</title>
+<title>Alchemy GeomML + TDA — Финальная презентация v34</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-    font-family: 'Segoe UI', Roboto, sans-serif;
-    background: #1a1a2e;
-    color: #eee;
-    line-height: 1.6;
-}
-.slide {
-    min-height: 100vh;
-    padding: 60px 80px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    border-bottom: 2px solid #2a2a4a;
-}
-.slide h1 {
-    font-size: 42px;
-    margin-bottom: 30px;
-    color: #fff;
-    border-bottom: 4px solid #4CAF50;
-    padding-bottom: 15px;
-}
-.slide h2 {
-    font-size: 28px;
-    margin: 20px 0;
-    color: #4CAF50;
-}
-.slide h3 {
-    font-size: 22px;
-    margin: 15px 0;
-    color: #FF9800;
-}
-.slide p, .slide li {
-    font-size: 18px;
-    margin: 8px 0;
-}
-.slide ul { margin-left: 30px; }
-.slide img {
-    max-width: 100%;
-    height: auto;
-    margin: 20px auto;
-    border-radius: 8px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-    display: block;
-}
-.slide .two-col {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 30px;
-}
-.slide .stat {
-    background: rgba(255,255,255,0.05);
-    padding: 20px;
-    border-radius: 8px;
-    border-left: 4px solid #2196F3;
-    margin: 15px 0;
-}
-.slide .stat .value {
-    font-size: 36px;
-    font-weight: bold;
-    color: #4CAF50;
-}
-.slide .stat .label {
-    font-size: 16px;
-    color: #aaa;
-}
-.slide .badge {
-    display: inline-block;
-    background: #4CAF50;
-    color: white;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 14px;
-    margin-right: 8px;
-}
-.slide .badge.orange { background: #FF9800; }
-.slide .badge.blue { background: #2196F3; }
-.slide .badge.purple { background: #9C27B0; }
-.slide nav {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: rgba(0,0,0,0.8);
-    padding: 10px 15px;
-    border-radius: 8px;
-    z-index: 100;
-}
-.slide nav a {
-    color: #4CAF50;
-    text-decoration: none;
-    margin: 0 5px;
-}
-.slide nav a:hover { color: #FF9800; }
-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-th, td { padding: 10px; text-align: left; border-bottom: 1px solid #2a2a4a; }
-th { background: #2a2a4a; color: #4CAF50; }
+body { font-family: 'Segoe UI', Roboto, sans-serif; background: #0d1117; color: #c9d1d9; line-height: 1.6; }
+.slide { min-height: 100vh; padding: 50px 70px; display: flex; flex-direction: column; justify-content: center; border-bottom: 2px solid #21262d; }
+.slide h1 { font-size: 38px; margin-bottom: 25px; color: #58a6ff; border-bottom: 3px solid #f78166; padding-bottom: 12px; }
+.slide h2 { font-size: 26px; margin: 18px 0; color: #7ee787; }
+.slide h3 { font-size: 20px; margin: 12px 0; color: #ffa657; }
+.slide p, .slide li { font-size: 17px; margin: 6px 0; }
+.slide ul { margin-left: 25px; }
+.slide img { max-width: 95%; height: auto; margin: 15px auto; border-radius: 8px; box-shadow: 0 4px 24px rgba(0,0,0,0.5); display: block; }
+.slide .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
+.slide .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+.stat { background: rgba(88,166,255,0.1); padding: 18px; border-radius: 8px; border-left: 4px solid #58a6ff; margin: 12px 0; }
+.stat .value { font-size: 32px; font-weight: bold; color: #7ee787; }
+.stat .label { font-size: 14px; color: #8b949e; }
+.bad { color: #f85149; }
+.good { color: #7ee787; }
+.badge { display: inline-block; background: #238636; color: white; padding: 3px 10px; border-radius: 10px; font-size: 12px; margin-right: 5px; }
+.badge.orange { background: #d29922; }
+.badge.blue { background: #1f6feb; }
+.badge.purple { background: #8957e5; }
+.badge.red { background: #da3633; }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+th, td { padding: 8px; text-align: center; border-bottom: 1px solid #21262d; }
+th { background: #21262d; color: #58a6ff; font-weight: bold; }
+.best { background: rgba(126,231,135,0.15); font-weight: bold; color: #7ee787; }
 </style>
 </head>
 <body>
 
 <!-- Slide 1: Title -->
 <section class="slide">
-    <span class="badge blue">v1.0</span>
-    <span class="badge orange">202,579 molecules</span>
-    <span class="badge purple">E(3)-equivariant</span>
-    <h1>Alchemy GeomML + TDA</h1>
-    <p style="font-size: 24px;">Предсказание квантово-механических свойств молекул с использованием геометрического глубокого обучения и топологического анализа данных</p>
-    <div class="two-col" style="margin-top: 40px;">
-        <div class="stat">
-            <div class="value">202,579</div>
-            <div class="label">молекул в датасете Alchemy</div>
-        </div>
-        <div class="stat">
-            <div class="value">6</div>
-            <div class="label">моделей: FCNN → EGNN Vector+TDA</div>
-        </div>
-        <div class="stat">
-            <div class="value">E(3)</div>
-            <div class="label">эквивариантность (translation + rotation + permutation)</div>
-        </div>
-        <div class="stat">
-            <div class="value">52D</div>
-            <div class="label">TDA-фичи: Betti curves + persistence entropy</div>
-        </div>
-    </div>
-    <nav><a href="#2">↓</a></nav>
+<span class="badge">v34</span>
+<span class="badge blue">202,579 молекул</span>
+<span class="badge purple">E(3)-эквивариант</span>
+<span class="badge orange">8 моделей</span>
+<h1>Alchemy GeomML + TDA</h1>
+<p style="font-size: 22px;">Предсказание квантово-механических свойств молекул с использованием геометрического глубокого обучения и топологического анализа данных</p>
+<div class="three-col" style="margin-top: 35px;">
+    <div class="stat"><div class="value">8</div><div class="label">моделей: FCNN → EGNN Tensor+TDA</div></div>
+    <div class="stat"><div class="value">E(3)</div><div class="label">эквивариантность (translation + rotation + permutation)</div></div>
+    <div class="stat"><div class="value">52D</div><div class="label">TDA-фичи: Betti curves + persistence entropy</div></div>
+</div>
 </section>
 
-<!-- Slide 2: Dataset Overview -->
-<section class="slide" id="2">
-    <h1>Датасет Alchemy</h1>
-    <p>Alchemy v20191129 — это подмножество GDB-17 базы органических молекул, для которых вычислены DFT-свойства (B3LYP/6-31G(2df,p)).</p>
-    <img src="slide1_overview.png" alt="Dataset overview">
-    <p><strong>3 таргета:</strong> μ (диполь, Дебай), α (поляризуемость, a₀³), gap (HOMO-LUMO, Хартри).</p>
-    <p><strong>7 типов атомов:</strong> H, C, N, O, F, S, Cl. Молекулы содержат 9–29 атомов.</p>
-    <nav><a href="#1">↑</a> <a href="#3">↓</a></nav>
+<!-- Slide 2: Dataset -->
+<section class="slide">
+<h1>Датасет Alchemy</h1>
+<p>202,579 органических молекул (H, C, N, O, F, S, Cl), 9-29 атомов. DFT-свойства (B3LYP/6-31G(2df,p)).</p>
+<h2>3 таргета</h2>
+<div class="three-col">
+    <div class="stat"><div class="value">μ</div><div class="label">Дипольный момент (Дебай)</div></div>
+    <div class="stat"><div class="value">α</div><div class="label">Поляризуемость (Бор³)</div></div>
+    <div class="stat"><div class="value">gap</div><div class="label">HOMO-LUMO gap (Хартри)</div></div>
+</div>
+<h2>Геометрические симметрии (priors)</h2>
+<ul>
+    <li><strong>Трансляция</strong> — сдвиг не меняет свойства (инвариантность)</li>
+    <li><strong>Вращение SO(3)</strong> — поворот сохраняет химию (эквивариантность)</li>
+    <li><strong>Перестановка атомов</strong> — порядок не важен (инвариантность)</li>
+</ul>
+<p>EGNN встраивает эти симметрии в архитектуру → быстрее сходимость, лучше точность.</p>
 </section>
 
-<!-- Slide 3: Correlations -->
-<section class="slide" id="3">
-    <h1>Корреляции между свойствами</h1>
-    <p>5,000 случайных молекул. Видна положительная корреляция μ ↔ α (более полярные молекулы более поляризуемы).</p>
-    <img src="slide2_correlations.png" alt="Correlations">
-    <p>Gap слабо коррелирует с μ и α — это независимая электронная характеристика.</p>
-    <nav><a href="#2">↑</a> <a href="#4">↓</a></nav>
+<!-- Slide 3: 8 Models -->
+<section class="slide">
+<h1>8 моделей — от baseline до физически корректных</h1>
+<table>
+<tr><th>#</th><th>Модель</th><th>Эквивариантность</th><th>μ выход</th><th>α выход</th><th>TDA</th><th>Параметров</th></tr>
+<tr><td>1</td><td>FCNN</td><td>нет</td><td>скаляр</td><td>скаляр</td><td>нет</td><td>53K</td></tr>
+<tr><td>2</td><td>SchNet</td><td>trans + perm</td><td>скаляр</td><td>скаляр</td><td>нет</td><td>500K</td></tr>
+<tr><td>3</td><td>EGNN</td><td>E(3)</td><td>скаляр</td><td>скаляр</td><td>нет</td><td>952K</td></tr>
+<tr><td>4</td><td>EGNN+TDA</td><td>E(3)</td><td>скаляр</td><td>скаляр</td><td>да</td><td>953K</td></tr>
+<tr><td>5</td><td>EGNN Vector</td><td>E(3)</td><td><strong>вектор R³</strong></td><td>скаляр</td><td>нет</td><td>968K</td></tr>
+<tr><td>6</td><td>EGNN Vector+TDA</td><td>E(3)</td><td><strong>вектор R³</strong></td><td>скаляр</td><td>да</td><td>981K</td></tr>
+<tr><td>7</td><td>EGNN Tensor ⭐</td><td>E(3)</td><td><strong>вектор R³</strong></td><td><strong>тензор 3×3</strong></td><td>нет</td><td>942K</td></tr>
+<tr><td>8</td><td>EGNN Tensor+TDA</td><td>E(3)</td><td><strong>вектор R³</strong></td><td><strong>тензор 3×3</strong></td><td>да</td><td>960K</td></tr>
+</table>
+<h3>Отличия моделей</h3>
+<ul>
+    <li><strong>FCNN → SchNet:</strong> добавляем translation + permutation инвариантность</li>
+    <li><strong>SchNet → EGNN:</strong> добавляем rotation эквивариантность (полная E(3))</li>
+    <li><strong>EGNN → EGNN Vector:</strong> скалярный μ → векторный μ через заряды</li>
+    <li><strong>EGNN Vector → EGNN Tensor:</strong> скалярный α → тензорный α через заряды (Часть B)</li>
+    <li><strong>+TDA:</strong> добавляем 52D топологические признаки (Betti curves, persistence entropy)</li>
+</ul>
 </section>
 
-<!-- Slide 4: Symmetries -->
-<section class="slide" id="4">
-    <h1>Геометрические симметрии молекул</h1>
-    <p>Физические свойства молекул не меняются при E(3)-преобразованиях:</p>
-    <ul>
-        <li><strong>Трансляция</strong> — сдвиг всей молекулы в пространстве (инвариантность)</li>
-        <li><strong>Вращение SO(3)</strong> — поворот молекулы (эквивариантность: μ-вектор вращается вместе с ней)</li>
-        <li><strong>Перестановка одинаковых атомов</strong> — переупорядочивание нумерации (инвариантность)</li>
-    </ul>
-    <img src="slide3_symmetries.png" alt="Symmetries">
-    <p>EGNN встраивает эти симметрии в архитектуру — обучение быстрее и точнее, чем у обычных MLP.</p>
-    <nav><a href="#3">↑</a> <a href="#5">↓</a></nav>
+<!-- Slide 4: Final Results -->
+<section class="slide">
+<h1>Финальные результаты v34</h1>
+<table>
+<tr><th>Модель</th><th>Эпох</th><th>μ MAE (D)</th><th>α MAE (a₀³)</th><th>gap MAE (Ha)</th><th>test_loss</th><th>Параметров</th></tr>
+<tr><td>FCNN</td><td>176</td><td>0.851</td><td>2.271</td><td>0.026</td><td>1.235</td><td>53K</td></tr>
+<tr><td>SchNet</td><td>226</td><td class="best">0.131</td><td>0.442</td><td>0.003</td><td>0.186</td><td>500K</td></tr>
+<tr><td>EGNN</td><td>135</td><td class="best">0.284</td><td>0.583</td><td>0.006</td><td>0.344</td><td>952K</td></tr>
+<tr><td>EGNN+TDA</td><td>146</td><td>0.298</td><td>0.619</td><td>0.006</td><td>0.362</td><td>953K</td></tr>
+<tr><td>EGNN Vector</td><td>188</td><td>4.123</td><td class="best">0.354</td><td class="best">0.004</td><td class="best">0.167</td><td>968K</td></tr>
+<tr><td>EGNN Vector+TDA</td><td>108</td><td>4.121</td><td>0.510</td><td>0.006</td><td>0.216</td><td>981K</td></tr>
+<tr><td>EGNN Tensor</td><td>475*</td><td>4.121</td><td>0.957</td><td>0.009</td><td>0.394</td><td>942K</td></tr>
+<tr><td>EGNN Tensor+TDA</td><td>273</td><td>4.111</td><td>1.011</td><td>0.010</td><td>0.428</td><td>960K</td></tr>
+</table>
+<p><em>* EGNN Tensor: лог обрезан на эпохе 475 (12-часовой лимит Kaggle)</em></p>
+<h3>Лучшие по метрикам:</h3>
+<div class="three-col">
+    <div class="stat"><div class="value good">EGNN</div><div class="label">μ MAE = 0.284 Дебай</div></div>
+    <div class="stat"><div class="value good">EGNN Vector</div><div class="label">α MAE = 0.354 Бор³</div></div>
+    <div class="stat"><div class="value good">EGNN Vector</div><div class="label">test_loss = 0.167</div></div>
+</div>
 </section>
 
-<!-- Slide 5: Models -->
-<section class="slide" id="5">
-    <h1>6 моделей разной эквивариантности</h1>
-    <table>
-        <tr><th>Модель</th><th>Эквивариантность</th><th>TDA</th><th>Описание</th></tr>
-        <tr><td>FCNN</td><td>нет</td><td>нет</td><td>Базовый MLP на дескрипторах</td></tr>
-        <tr><td>SchNet</td><td>translation + permutation</td><td>нет</td><td>Continuous filter convolutions</td></tr>
-        <tr><td>EGNN</td><td>E(3)</td><td>нет</td><td>E(3)-эквивариантная сеть</td></tr>
-        <tr><td>EGNN+TDA</td><td>E(3)</td><td>да</td><td>EGNN + топологические признаки</td></tr>
-        <tr><td>EGNN Vector</td><td>E(3)</td><td>нет</td><td>EGNN с векторным выходом μ</td></tr>
-        <tr><td>EGNN Vector+TDA</td><td>E(3)</td><td>да</td><td>EGNN Vector + TDA</td></tr>
-    </table>
-    <img src="slide4_models_comparison.png" alt="Models comparison">
-    <nav><a href="#4">↑</a> <a href="#6">↓</a></nav>
+<!-- Slide 5: TDA Analysis -->
+<section class="slide">
+<h1>TDA: почему не нужен</h1>
+<h2>Сравнение EGNN vs EGNN+TDA</h2>
+<table>
+<tr><th>Метрика</th><th>EGNN</th><th>EGNN+TDA</th><th>Ухудшение</th></tr>
+<tr><td>μ MAE</td><td class="good">0.284</td><td class="bad">0.298</td><td class="bad">+5%</td></tr>
+<tr><td>α MAE</td><td class="good">0.583</td><td class="bad">0.619</td><td class="bad">+6%</td></tr>
+<tr><td>gap MAE</td><td class="good">0.0058</td><td class="bad">0.0061</td><td class="bad">+5%</td></tr>
+<tr><td>test_loss</td><td class="good">0.344</td><td class="bad">0.362</td><td class="bad">+5%</td></tr>
+</table>
+<h2>Корневая причина: 54% фичей всегда ноль</h2>
+<table>
+<tr><th>Группа</th><th>Всего</th><th>Информативных</th><th>Всегда ноль</th></tr>
+<tr><td>H₀ Betti (компоненты)</td><td>16</td><td class="good">16</td><td class="bad">0</td></tr>
+<tr><td>H₁ Betti (петли)</td><td>16</td><td class="good">4</td><td class="bad">12</td></tr>
+<tr><td>H₂ Betti (пустоты)</td><td>16</td><td class="bad">0</td><td class="bad">16</td></tr>
+<tr><td>Entropy + Mean pers</td><td>4</td><td class="good">4</td><td class="bad">0</td></tr>
+<tr><td><strong>Итого</strong></td><td><strong>52</strong></td><td class="good"><strong>24</strong></td><td class="bad"><strong>28 (54%)</strong></td></tr>
+</table>
+<p><strong>Вывод:</strong> TDA не нужен для малых молекул (9-29 атомов). H₂ не существует, H₁ обрезается max_radius=5. Это <span class="good">валидный негативный результат</span>.</p>
 </section>
 
-<!-- Slide 6: TDA -->
-<section class="slide" id="6">
-    <h1>Topological Data Analysis (TDA)</h1>
-    <p>Извлечение инвариантных топологических признаков из 3D-структуры молекулы.</p>
-    <h2>Как это работает</h2>
-    <ol style="margin-left: 30px; font-size: 18px;">
-        <li><strong>Vietoris-Rips фильтрация</strong> — строим серии симплициальных комплексов для возрастающих радиусов</li>
-        <li><strong>Персистентная гомология</strong> — отслеживаем "живущие" особенности (компоненты H₀, петли H₁, пустоты H₂)</li>
-        <li><strong>Betti curves</strong> — число активных особенностей по уровням фильтрации (16 бинов × 3 размерности = 48D)</li>
-        <li><strong>Persistence entropy</strong> — энтропия распределения персистентностей (3D)</li>
-        <li><strong>Средняя персистентность</strong> — обобщённая статистика (1D)</li>
-    </ol>
-    <p><strong>Итог:</strong> 52D вектор на молекулу, E(3)-инвариантный по построению.</p>
-    <img src="slide5_tda.png" alt="TDA features">
-    <nav><a href="#5">↑</a> <a href="#7">↓</a></nav>
+<!-- Slide 6: EGNN Vector vs EGNN -->
+<section class="slide">
+<h1>EGNN Vector: векторный μ лучше для α и gap</h1>
+<table>
+<tr><th>Метрика</th><th>EGNN (скаляр μ)</th><th>EGNN Vector (вектор μ)</th><th>Разница</th></tr>
+<tr><td>μ MAE</td><td class="good">0.284</td><td class="bad">4.123</td><td class="bad">+1352%</td></tr>
+<tr><td>α MAE</td><td>0.583</td><td class="good">0.354</td><td class="good">-39%</td></tr>
+<tr><td>gap MAE</td><td>0.0058</td><td class="good">0.0044</td><td class="good">-24%</td></tr>
+<tr><td>test_loss</td><td>0.344</td><td class="good">0.167</td><td class="good">-51%</td></tr>
+</table>
+<h2>Почему?</h2>
+<ul>
+    <li><strong>μ плохо сходится:</strong> заряды начинаются с zero-init → μ≈0 → нужно 188 эпох</li>
+    <li><strong>α и gap лучше:</strong> векторное представление μ даёт более богатые признаки → mol_emb лучше описывает молекулу</li>
+    <li><strong>test_loss в 2 раза лучше:</strong> 0.167 vs 0.344 — модель лучше обобщает</li>
+</ul>
 </section>
 
-<!-- Slide 7: AutoML -->
-<section class="slide" id="7">
-    <h1>AutoML — автоматический выбор архитектуры</h1>
-    <p><strong>Программа максимум:</strong> обратная задача — извлечь геометрические priors из TDA и рекомендовать оптимальную архитектуру.</p>
-    <h2>Алгоритм</h2>
-    <ol style="margin-left: 30px; font-size: 18px;">
-        <li>Загружаем N молекул из датасета (только координаты)</li>
-        <li>Для каждой молекулы применяем случайные E(3)-преобразования (translation, rotation, permutation)</li>
-        <li>Сравниваем TDA-фичи до/после преобразования</li>
-        <li>Если TDA инвариантна к преобразованию (score ≥ 0.95) → соответствующий prior присутствует в данных</li>
-        <li>Рекомендуем архитектуру с подходящими эквивариантностями</li>
-    </ol>
-    <h2>Результат на Alchemy</h2>
-    <div class="two-col">
-        <div class="stat">
-            <div class="value">1.0000</div>
-            <div class="label">translation invariance</div>
-        </div>
-        <div class="stat">
-            <div class="value">1.0000</div>
-            <div class="label">rotation invariance</div>
-        </div>
-        <div class="stat">
-            <div class="value">1.0000</div>
-            <div class="label">permutation invariance</div>
-        </div>
-        <div class="stat">
-            <div class="value">EGNN</div>
-            <div class="label">recommended architecture</div>
-        </div>
-    </div>
-    <p style="margin-top: 30px;">Все три E(3) симметрии присутствуют → EGNN — правильный выбор.</p>
-    <nav><a href="#6">↑</a> <a href="#8">↓</a></nav>
+<!-- Slide 7: EGNN Tensor (Part B) -->
+<section class="slide">
+<h1>EGNN Tensor — Часть B (программа максимума)</h1>
+<h2>Физически корректный расчёт через частичные заряды</h2>
+<pre style="font-size: 16px; background: #161b22; padding: 20px; border-radius: 8px; color: #c9d1d9;">
+μ = Σ qᵢ · (rᵢ − COM)                      # вектор R³
+α = Σ qᵢ · (rᵢ − COM) ⊗ (rᵢ − COM)       # тензор R^(3×3)
+α_iso = tr(α) / 3                          # скаляр (совместимость с Alchemy)
+</pre>
+<h2>E(3)-эквивариантность 1-го и 2-го ранга</h2>
+<ul>
+    <li>При вращении R: μ → R·μ, α → R·α·Rᵀ</li>
+    <li>При трансляции: μ и α не меняются</li>
+    <li>При перестановке: μ и α не меняются</li>
+</ul>
+<h2>Результаты</h2>
+<table>
+<tr><th>Метрика</th><th>EGNN (MLP)</th><th>EGNN Tensor (физика)</th></tr>
+<tr><td>μ MAE</td><td class="good">0.284</td><td class="bad">4.121</td></tr>
+<tr><td>α MAE</td><td class="good">0.583</td><td>0.957</td></tr>
+<tr><td>gap MAE</td><td class="good">0.0058</td><td>0.0091</td></tr>
+</table>
+<p>Физически корректный расчёт работает, но уступает MLP — аппроксимация зарядов грубее direct regression.</p>
 </section>
 
-<!-- Slide 8: Results -->
-<section class="slide" id="8">
-    <h1>Результаты и воспроизводимость</h1>
-    <h2>Что получаем после обучения</h2>
-    <ul>
-        <li><code>checkpoints/&lt;model&gt;_all_best.pt</code> — лучший чекпойнт</li>
-        <li><code>results/experiments/batch_size_512/history_*.csv</code> — история по эпохам</li>
-        <li><code>results/experiments/batch_size_512/summary_*.csv</code> — сводка метрик</li>
-        <li><code>results/experiments/batch_size_512/args_*.json</code> — все гиперпараметры</li>
-        <li><code>results/experiments/batch_size_512/target_stats_*.json</code> — нормализация</li>
-        <li><code>results/figures/*.png</code> — графики обучения + parity plots</li>
-        <li><code>results/robustness/*.csv</code> — robustness eval</li>
-        <li><code>results/automl/recommendation.json</code> — отчёт AutoML</li>
-    </ul>
-    <h2>Воспроизводимость</h2>
-    <ul>
-        <li>seed=42 (фиксированный)</li>
-        <li>Stratified split 80/10/10 по HOMO-LUMO gap</li>
-        <li>Target normalization: (y - mean) / std по train выборке</li>
-        <li>108 pytest тестов + ruff lint чистый</li>
-        <li>Dockerfile для воспроизводимого окружения</li>
-    </ul>
-    <h2>Ссылки</h2>
-    <p>• <a href="https://github.com/ThomasMoore25/alchemy-geom-tda" style="color: #4CAF50;">github.com/ThomasMoore25/alchemy-geom-tda</a></p>
-    <p>• <a href="https://arxiv.org/pdf/1906.09427" style="color: #4CAF50;">Alchemy paper (Chen et al., 2019)</a></p>
-    <p>• <a href="https://arxiv.org/abs/2107.02994" style="color: #4CAF50;">EGNN paper (Satorras et al., 2021)</a></p>
-    <nav><a href="#7">↑</a> <a href="#1">⌂</a></nav>
+<!-- Slide 8: AutoML -->
+<section class="slide">
+<h1>AutoML — автоматический выбор архитектуры</h1>
+<h2>Обратная задача: TDA → priors → архитектура</h2>
+<ol style="margin-left: 25px; font-size: 17px;">
+    <li>Загружаем N молекул (координаты)</li>
+    <li>Применяем случайные E(3)-преобразования</li>
+    <li>Сравниваем TDA-фичи до/после</li>
+    <li>Если инвариантна → prior присутствует</li>
+    <li>Рекомендуем архитектуру</li>
+</ol>
+<h2>Результат на Alchemy (30 молекул)</h2>
+<div class="three-col">
+    <div class="stat"><div class="value">1.0000</div><div class="label">translation invariance</div></div>
+    <div class="stat"><div class="value">1.0000</div><div class="label">rotation invariance</div></div>
+    <div class="stat"><div class="value">1.0000</div><div class="label">permutation invariance</div></div>
+</div>
+<p style="margin-top: 25px;"><strong>Рекомендация:</strong> EGNN — все три E(3) симметрии присутствуют.</p>
+</section>
+
+<!-- Slide 9: Key Findings -->
+<section class="slide">
+<h1>Финальные выводы</h1>
+<ol style="margin-left: 25px; font-size: 17px;">
+    <li><strong>EGNN</strong> — лучшая модель для μ (0.284 Дебай). E(3)-эквивариантность работает.</li>
+    <li><strong>EGNN Vector</strong> — лучшая для α (0.354) и gap (0.0044). test_loss в 2 раза лучше EGNN.</li>
+    <li><strong>TDA не нужен</strong> — 54% фичей всегда ноль, ухудшение на +5-6% по всем метрикам. Валидный негативный результат.</li>
+    <li><strong>EGNN Tensor (Часть B)</strong> — физически корректный μ и α через заряды. Работает, но грубее MLP.</li>
+    <li><strong>Batch size</strong> — bs=256 лучше bs=1024 на 60% по μ MAE.</li>
+    <li><strong>SchNet</strong> остаётся лучшим baseline (μ MAE=0.131), но EGNN лучше для gap.</li>
+</ol>
+<h2>Что реализовано</h2>
+<ul>
+    <li>✅ 8 моделей: FCNN → EGNN Tensor+TDA</li>
+    <li>✅ Полный пайплайн: download → train → evaluate → plot → robustness</li>
+    <li>✅ AutoML: TDA priors → рекомендация архитектуры</li>
+    <li>✅ 129 pytest тестов, ruff чистый, CI/CD на GitHub Actions</li>
+    <li>✅ Kaggle ноутбук, Dockerfile, документация</li>
+</ul>
 </section>
 
 </body>

@@ -1,0 +1,3 @@
+model,status,train_time_s,n_epochs,best_epoch,best_val_loss,test_mu_mae,test_alpha_mae,test_gap_mae,test_loss,csv_file
+egnn_vector,OK,18974.6,108,99,0.213,4.1207,0.51,0.0055,0.2161,history_egnn_vector_tda_all_20260720_001348.csv
+egnn_vector_tda,OK,11278.9,108,99,0.213,4.1207,0.51,0.0055,0.2161,history_egnn_vector_tda_all_20260720_001348.csv
